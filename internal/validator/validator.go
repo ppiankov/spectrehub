@@ -214,9 +214,7 @@ func (v *Validator) ValidateClickHouseReport(data []byte) error {
 		if !validCategories[table.Category] {
 			errors = append(errors, fmt.Sprintf("Table '%s' has invalid category: '%s'", table.FullName, table.Category))
 		}
-		if table.Reads < 0 {
-			errors = append(errors, fmt.Sprintf("Table '%s' has invalid read count: %d", table.FullName, table.Reads))
-		}
+		// Note: table.Reads is uint64, so it cannot be negative
 	}
 
 	if len(errors) > 0 {

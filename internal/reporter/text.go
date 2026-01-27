@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/ppiankov/spectrehub/internal/aggregator"
 	"github.com/ppiankov/spectrehub/internal/models"
@@ -83,7 +84,7 @@ func (r *TextReporter) printOverallSummary(report *models.AggregatedReport) {
 	if len(report.Summary.IssuesByCategory) > 0 {
 		r.printf("Issues by Category:\n")
 		for category, count := range report.Summary.IssuesByCategory {
-			r.printf("  %s: %d\n", strings.Title(category), count)
+			r.printf("  %s: %d\n", toTitle(category), count)
 		}
 		r.printf("\n")
 	}
@@ -92,7 +93,7 @@ func (r *TextReporter) printOverallSummary(report *models.AggregatedReport) {
 	if len(report.Summary.IssuesBySeverity) > 0 {
 		r.printf("Issues by Severity:\n")
 		for severity, count := range report.Summary.IssuesBySeverity {
-			r.printf("  %s: %d\n", strings.Title(severity), count)
+			r.printf("  %s: %d\n", toTitle(severity), count)
 		}
 		r.printf("\n")
 	}
@@ -269,6 +270,16 @@ func (r *TextReporter) printTrendInfo(trend *models.Trend) {
 // printf is a helper to write formatted output
 func (r *TextReporter) printf(format string, args ...interface{}) {
 	fmt.Fprintf(r.writer, format, args...)
+}
+
+// toTitle converts the first character to uppercase (simple title case)
+func toTitle(s string) string {
+	if s == "" {
+		return s
+	}
+	runes := []rune(s)
+	runes[0] = unicode.ToUpper(runes[0])
+	return string(runes)
 }
 
 // formatTimestamp formats a timestamp for display
