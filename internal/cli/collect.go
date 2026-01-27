@@ -220,7 +220,7 @@ func generateOutput(report *models.AggregatedReport, format, outputPath string) 
 				return err
 			}
 
-			fmt.Fprintln(writer, "\n=== JSON Output ===\n")
+			fmt.Fprintf(writer, "\n=== JSON Output ===\n\n")
 
 			jsonReporter := reporter.NewJSONReporter(writer, true)
 			return jsonReporter.Generate(report)
