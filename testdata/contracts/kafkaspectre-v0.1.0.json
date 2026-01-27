@@ -1,0 +1,71 @@
+{
+  "summary": {
+    "cluster_name": "prod-kafka",
+    "total_brokers": 3,
+    "total_topics_including_internal": 55,
+    "total_topics_analyzed": 50,
+    "unused_topics": 8,
+    "active_topics": 42,
+    "internal_topics_excluded": 5,
+    "unused_percentage": 16.0,
+    "total_partitions": 150,
+    "unused_partitions": 24,
+    "active_partitions": 126,
+    "unused_partitions_percentage": 16.0,
+    "total_consumer_groups": 15,
+    "high_risk_count": 2,
+    "medium_risk_count": 3,
+    "low_risk_count": 3,
+    "recommended_cleanup_topics": ["temp-migration-topic", "old-events-topic"],
+    "cluster_health_score": "good",
+    "potential_savings_info": "24 unused partitions could be cleaned up"
+  },
+  "unused_topics": [
+    {
+      "name": "temp-migration-topic",
+      "partitions": 3,
+      "replication_factor": 2,
+      "retention_ms": "604800000",
+      "retention_human": "7 days",
+      "cleanup_policy": "delete",
+      "min_insync_replicas": "1",
+      "interesting_config": {},
+      "reason": "No active consumers for 30+ days",
+      "recommendation": "Safe to delete - appears to be temporary",
+      "risk": "high",
+      "cleanup_priority": 1
+    },
+    {
+      "name": "old-events-topic",
+      "partitions": 6,
+      "replication_factor": 2,
+      "retention_ms": "2592000000",
+      "retention_human": "30 days",
+      "cleanup_policy": "delete",
+      "min_insync_replicas": "1",
+      "interesting_config": {},
+      "reason": "No consumers found, retention expired",
+      "recommendation": "Review before deletion",
+      "risk": "medium",
+      "cleanup_priority": 2
+    }
+  ],
+  "active_topics": [
+    {
+      "name": "user-events",
+      "partitions": 12,
+      "replication_factor": 3,
+      "consumer_groups": ["analytics-service", "email-service"],
+      "consumer_count": 2
+    }
+  ],
+  "cluster_metadata": {
+    "brokers": [
+      {"id": 1, "host": "kafka-1.example.com", "port": 9092},
+      {"id": 2, "host": "kafka-2.example.com", "port": 9092},
+      {"id": 3, "host": "kafka-3.example.com", "port": 9092}
+    ],
+    "consumer_groups_count": 15,
+    "fetched_at": "2026-01-27T10:30:00Z"
+  }
+}

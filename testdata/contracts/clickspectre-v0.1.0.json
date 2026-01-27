@@ -1,0 +1,85 @@
+{
+  "metadata": {
+    "generated_at": "2026-01-27T10:30:00Z",
+    "lookback_days": 30,
+    "clickhouse_host": "clickhouse.example.com:9000",
+    "total_queries_analyzed": 156789,
+    "analysis_duration": "2m15s",
+    "version": "0.1.0",
+    "k8s_resolution_enabled": false
+  },
+  "tables": [
+    {
+      "name": "user_events",
+      "database": "analytics",
+      "full_name": "analytics.user_events",
+      "reads": 45623,
+      "writes": 12456,
+      "last_access": "2026-01-27T09:00:00Z",
+      "first_seen": "2025-12-01T10:00:00Z",
+      "sparkline": [
+        {"timestamp": "2026-01-20T00:00:00Z", "count": 3500},
+        {"timestamp": "2026-01-21T00:00:00Z", "count": 4200},
+        {"timestamp": "2026-01-27T00:00:00Z", "count": 5100}
+      ],
+      "score": 95.5,
+      "category": "active",
+      "is_materialized_view": false,
+      "engine": "ReplicatedMergeTree",
+      "is_replicated": true,
+      "total_bytes": 524288000,
+      "total_rows": 1234567,
+      "create_time": "2025-12-01T10:00:00Z",
+      "zero_usage": false
+    },
+    {
+      "name": "temp_migration_data",
+      "database": "staging",
+      "full_name": "staging.temp_migration_data",
+      "reads": 0,
+      "writes": 0,
+      "last_access": "2025-11-15T10:00:00Z",
+      "first_seen": "2025-11-01T10:00:00Z",
+      "sparkline": [],
+      "score": 0.0,
+      "category": "unused",
+      "is_materialized_view": false,
+      "engine": "MergeTree",
+      "is_replicated": false,
+      "total_bytes": 1048576,
+      "total_rows": 0,
+      "create_time": "2025-11-01T10:00:00Z",
+      "zero_usage": true
+    }
+  ],
+  "services": [
+    {
+      "name": "analytics-service",
+      "namespace": "production",
+      "pod_prefix": "analytics-",
+      "query_count": 25000
+    }
+  ],
+  "edges": [
+    {
+      "service": "analytics-service",
+      "table": "analytics.user_events",
+      "query_count": 15000,
+      "last_query": "2026-01-27T09:00:00Z"
+    }
+  ],
+  "anomalies": [
+    {
+      "type": "usage",
+      "severity": "medium",
+      "affected_table": "staging.temp_migration_data",
+      "description": "Table has zero usage for 30+ days",
+      "detected_at": "2026-01-27T10:30:00Z"
+    }
+  ],
+  "cleanup_recommendations": {
+    "safe_to_drop": ["staging.temp_migration_data"],
+    "review_needed": [],
+    "keep": ["analytics.user_events"]
+  }
+}

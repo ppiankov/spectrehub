@@ -1,0 +1,13 @@
+{
+  "tool": "pgspectre",
+  "version": "0.1.0",
+  "timestamp": "2026-01-27T10:30:00Z",
+  "summary": {
+    "total_tables": 50,
+    "unused_tables": 5
+  },
+  "tables": [
+    {"name": "users", "status": "ok"},
+    {"name": "old_data", "status": "unused"}
+  ]
+}

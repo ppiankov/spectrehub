@@ -1,0 +1,55 @@
+{
+  "tool": "s3spectre",
+  "version": "0.1.0",
+  "timestamp": "2026-01-27T10:30:00Z",
+  "config": {
+    "aws_region": "us-west-2",
+    "scan_paths": ["."]
+  },
+  "summary": {
+    "total_buckets": 12,
+    "ok_buckets": 10,
+    "missing_buckets": ["my-old-backup-bucket"],
+    "unused_buckets": ["temp-migration-bucket"],
+    "missing_prefixes": [],
+    "stale_prefixes": ["logs-archive/2023/"],
+    "version_sprawl": [],
+    "lifecycle_misconfig": []
+  },
+  "buckets": {
+    "my-app-assets": {
+      "name": "my-app-assets",
+      "status": "OK",
+      "message": "Bucket is properly configured",
+      "referenced_in_code": true,
+      "exists_in_aws": true,
+      "versioning_enabled": false,
+      "lifecycle_rules": 1,
+      "prefixes": []
+    },
+    "my-old-backup-bucket": {
+      "name": "my-old-backup-bucket",
+      "status": "MISSING_BUCKET",
+      "message": "Bucket referenced in code but does not exist in AWS",
+      "referenced_in_code": true,
+      "exists_in_aws": false,
+      "versioning_enabled": false,
+      "lifecycle_rules": 0,
+      "prefixes": []
+    },
+    "temp-migration-bucket": {
+      "name": "temp-migration-bucket",
+      "status": "UNUSED_BUCKET",
+      "message": "Bucket exists but is not referenced in code",
+      "referenced_in_code": false,
+      "exists_in_aws": true,
+      "versioning_enabled": true,
+      "lifecycle_rules": 0,
+      "prefixes": [],
+      "unused_score": {
+        "confidence": "high",
+        "reason": "No code references found"
+      }
+    }
+  }
+}

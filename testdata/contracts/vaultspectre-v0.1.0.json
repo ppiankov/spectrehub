@@ -1,0 +1,47 @@
+{
+  "tool": "vaultspectre",
+  "version": "0.1.0",
+  "timestamp": "2026-01-27T10:30:00Z",
+  "config": {
+    "vault_addr": "https://vault.example.com",
+    "scan_paths": ["."]
+  },
+  "summary": {
+    "total_references": 50,
+    "status_ok": 42,
+    "status_missing": 5,
+    "status_access_denied": 2,
+    "status_invalid": 0,
+    "status_dynamic": 0,
+    "status_error": 1,
+    "stale_secrets": 3,
+    "health_score": "good"
+  },
+  "secrets": {
+    "secret/api/database/password": {
+      "path": "secret/api/database/password",
+      "status": "ok",
+      "is_stale": false,
+      "references": [
+        {"file": "config/database.yml", "line": 12}
+      ]
+    },
+    "secret/api/stripe/key": {
+      "path": "secret/api/stripe/key",
+      "status": "missing",
+      "error_msg": "secret not found in Vault",
+      "references": [
+        {"file": "services/payment.go", "line": 45}
+      ]
+    },
+    "secret/deprecated/old-service": {
+      "path": "secret/deprecated/old-service",
+      "status": "ok",
+      "is_stale": true,
+      "last_accessed": "2025-06-15T10:00:00Z",
+      "references": [
+        {"file": "legacy/service.go", "line": 23}
+      ]
+    }
+  }
+}
