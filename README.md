@@ -518,7 +518,7 @@ Features to be prioritized based on user feedback:
 
 ## License
 
-MIT License - see [LICENSE][LICENSE) file for details
+MIT License - see [LICENSE](LICENSE) file for details
 
 ## Support
 
