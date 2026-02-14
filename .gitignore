@@ -27,6 +27,9 @@ go.work
 .DS_Store
 Thumbs.db
 
+# Context snapshots
+
 # SpectreHub specific
 .spectre/
 *.json.bak
+
