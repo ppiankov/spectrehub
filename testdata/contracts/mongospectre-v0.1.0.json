@@ -1,0 +1,49 @@
+{
+  "metadata": {
+    "version": "0.1.0",
+    "command": "audit",
+    "timestamp": "2026-02-10T12:30:00Z",
+    "database": "appdb",
+    "mongodbVersion": "7.0.4",
+    "uriHash": "sha256:1f4d7c9a6b0b9f3a2e1d5c4b3a2f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1"
+  },
+  "findings": [
+    {
+      "type": "UNUSED_COLLECTION",
+      "severity": "high",
+      "database": "appdb",
+      "collection": "legacy",
+      "message": "collection has no documents"
+    },
+    {
+      "type": "MISSING_INDEX",
+      "severity": "medium",
+      "database": "appdb",
+      "collection": "orders",
+      "message": "collection has queries without supporting index"
+    },
+    {
+      "type": "ORPHANED_INDEX",
+      "severity": "low",
+      "database": "appdb",
+      "collection": "sessions",
+      "index": "idx_sessions_ttl",
+      "message": "index exists but no matching fields are used in queries"
+    },
+    {
+      "type": "ADMIN_IN_DATA_DB",
+      "severity": "high",
+      "database": "appdb",
+      "collection": "",
+      "message": "user \"appAdmin\" has admin role \"dbAdmin\" in non-admin database"
+    }
+  ],
+  "maxSeverity": "high",
+  "summary": {
+    "total": 4,
+    "high": 2,
+    "medium": 1,
+    "low": 1,
+    "info": 0
+  }
+}

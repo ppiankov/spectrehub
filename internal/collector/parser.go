@@ -19,6 +19,10 @@ func ParseReport(data []byte, toolType models.ToolType) (interface{}, error) {
 		return ParseKafkaReport(data)
 	case models.ToolClickHouse:
 		return ParseClickHouseReport(data)
+	case models.ToolPg:
+		return ParsePgReport(data)
+	case models.ToolMongo:
+		return ParseMongoReport(data)
 	default:
 		return ParseUnsupportedReport(data)
 	}
@@ -83,6 +87,43 @@ func ParseClickHouseReport(data []byte) (*models.ClickHouseReport, error) {
 	return &report, nil
 }
 
+// ParsePgReport parses PgSpectre JSON output
+func ParsePgReport(data []byte) (*models.PgReport, error) {
+	var report models.PgReport
+	if err := json.Unmarshal(data, &report); err != nil {
+		return nil, fmt.Errorf("failed to parse PgSpectre report: %w", err)
+	}
+
+	if report.Metadata.Tool == "" {
+		report.Metadata.Tool = "pgspectre"
+	}
+	if report.Metadata.Timestamp == "" {
+		report.Metadata.Timestamp = time.Now().UTC().Format(time.RFC3339)
+	}
+	if report.Findings == nil {
+		report.Findings = []models.PgFinding{}
+	}
+
+	return &report, nil
+}
+
+// ParseMongoReport parses MongoSpectre JSON output
+func ParseMongoReport(data []byte) (*models.MongoReport, error) {
+	var report models.MongoReport
+	if err := json.Unmarshal(data, &report); err != nil {
+		return nil, fmt.Errorf("failed to parse MongoSpectre report: %w", err)
+	}
+
+	if report.Metadata.Timestamp == "" {
+		report.Metadata.Timestamp = time.Now().UTC().Format(time.RFC3339)
+	}
+	if report.Findings == nil {
+		report.Findings = []models.MongoFinding{}
+	}
+
+	return &report, nil
+}
+
 // ParseUnsupportedReport stores raw JSON for unsupported tools
 func ParseUnsupportedReport(data []byte) (map[string]interface{}, error) {
 	var rawData map[string]interface{}
@@ -137,6 +178,19 @@ func ExtractTimestamp(data []byte) time.Time {
 
 	if err := json.Unmarshal(data, &metadataTimestamp); err == nil && !metadataTimestamp.Metadata.GeneratedAt.IsZero() {
 		return metadataTimestamp.Metadata.GeneratedAt
+	}
+
+	// Try metadata timestamp string (PgSpectre, MongoSpectre)
+	var metadataTimeString struct {
+		Metadata struct {
+			Timestamp string `json:"timestamp"`
+		} `json:"metadata"`
+	}
+
+	if err := json.Unmarshal(data, &metadataTimeString); err == nil && metadataTimeString.Metadata.Timestamp != "" {
+		if t, err := time.Parse(time.RFC3339, metadataTimeString.Metadata.Timestamp); err == nil {
+			return t
+		}
 	}
 
 	// Try cluster_metadata fetched_at (for KafkaSpectre)

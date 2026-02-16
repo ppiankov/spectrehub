@@ -30,6 +30,10 @@ func (n *Normalizer) Normalize(report *models.ToolReport) ([]models.NormalizedIs
 		return n.NormalizeKafka(report)
 	case models.ToolClickHouse:
 		return n.NormalizeClickHouse(report)
+	case models.ToolPg:
+		return n.NormalizePg(report)
+	case models.ToolMongo:
+		return n.NormalizeMongo(report)
 	default:
 		return nil, fmt.Errorf("unknown tool type: %s", report.Tool)
 	}
@@ -216,6 +220,70 @@ func (n *Normalizer) NormalizeClickHouse(report *models.ToolReport) ([]models.No
 	return issues, nil
 }
 
+// NormalizePg converts PgSpectre report to normalized issues
+func (n *Normalizer) NormalizePg(report *models.ToolReport) ([]models.NormalizedIssue, error) {
+	pgReport, ok := report.RawData.(*models.PgReport)
+	if !ok {
+		return nil, fmt.Errorf("invalid Pg report data")
+	}
+
+	var issues []models.NormalizedIssue
+
+	for _, finding := range pgReport.Findings {
+		category := mapPgFindingCategory(finding.Type)
+		if category == "" {
+			continue
+		}
+
+		issue := models.NormalizedIssue{
+			Tool:      report.Tool,
+			Category:  category,
+			Severity:  mapSpectreSeverity(finding.Severity),
+			Resource:  buildPgResource(finding),
+			Evidence:  finding.Message,
+			Count:     1,
+			FirstSeen: report.Timestamp,
+			LastSeen:  report.Timestamp,
+		}
+
+		issues = append(issues, issue)
+	}
+
+	return issues, nil
+}
+
+// NormalizeMongo converts MongoSpectre report to normalized issues
+func (n *Normalizer) NormalizeMongo(report *models.ToolReport) ([]models.NormalizedIssue, error) {
+	mongoReport, ok := report.RawData.(*models.MongoReport)
+	if !ok {
+		return nil, fmt.Errorf("invalid Mongo report data")
+	}
+
+	var issues []models.NormalizedIssue
+
+	for _, finding := range mongoReport.Findings {
+		category := mapMongoFindingCategory(finding.Type)
+		if category == "" {
+			continue
+		}
+
+		issue := models.NormalizedIssue{
+			Tool:      report.Tool,
+			Category:  category,
+			Severity:  mapSpectreSeverity(finding.Severity),
+			Resource:  buildMongoResource(finding),
+			Evidence:  finding.Message,
+			Count:     1,
+			FirstSeen: report.Timestamp,
+			LastSeen:  report.Timestamp,
+		}
+
+		issues = append(issues, issue)
+	}
+
+	return issues, nil
+}
+
 // Helper functions to map tool-specific statuses to normalized categories
 
 func mapVaultStatus(status string) string {
@@ -271,4 +339,83 @@ func buildVaultEvidence(secret *models.SecretInfo) string {
 		return fmt.Sprintf("stale (last accessed: %s)", secret.LastAccessed)
 	}
 	return fmt.Sprintf("status: %s", secret.Status)
+}
+
+func mapPgFindingCategory(findingType string) string {
+	switch findingType {
+	case "UNUSED_TABLE", "UNUSED_INDEX", "UNREFERENCED_TABLE":
+		return models.StatusUnused
+	case "MISSING_TABLE", "MISSING_COLUMN":
+		return models.StatusMissing
+	case "BLOATED_INDEX", "MISSING_VACUUM":
+		return models.StatusStale
+	case "NO_PRIMARY_KEY", "DUPLICATE_INDEX", "UNINDEXED_QUERY":
+		return models.StatusMisconfig
+	case "CODE_MATCH", "OK":
+		return ""
+	default:
+		return models.StatusError
+	}
+}
+
+func mapMongoFindingCategory(findingType string) string {
+	switch findingType {
+	case "UNUSED_COLLECTION", "UNUSED_INDEX", "ORPHANED_INDEX":
+		return models.StatusUnused
+	case "MISSING_COLLECTION":
+		return models.StatusMissing
+	case "MISSING_INDEX", "DUPLICATE_INDEX", "MISSING_TTL", "UNINDEXED_QUERY", "SUGGEST_INDEX":
+		return models.StatusMisconfig
+	case "OVERSIZED_COLLECTION":
+		return models.StatusStale
+	case "DYNAMIC_COLLECTION":
+		return models.StatusDrift
+	case "ADMIN_IN_DATA_DB", "DUPLICATE_USER", "OVERPRIVILEGED_USER", "MULTIPLE_ADMIN_USERS":
+		return models.StatusMisconfig
+	case "OK":
+		return ""
+	default:
+		return models.StatusError
+	}
+}
+
+func mapSpectreSeverity(severity string) string {
+	switch severity {
+	case "high":
+		return models.SeverityHigh
+	case "medium":
+		return models.SeverityMedium
+	case "low", "info":
+		return models.SeverityLow
+	default:
+		return models.SeverityMedium
+	}
+}
+
+func buildPgResource(finding models.PgFinding) string {
+	base := finding.Table
+	if finding.Schema != "" {
+		base = finding.Schema + "." + finding.Table
+	}
+	if finding.Column != "" {
+		return base + "." + finding.Column
+	}
+	if finding.Index != "" {
+		return base + ".index:" + finding.Index
+	}
+	return base
+}
+
+func buildMongoResource(finding models.MongoFinding) string {
+	base := finding.Database
+	if base == "" {
+		base = "unknown"
+	}
+	if finding.Collection != "" {
+		base = base + "." + finding.Collection
+	}
+	if finding.Index != "" {
+		base = base + "." + finding.Index
+	}
+	return base
 }

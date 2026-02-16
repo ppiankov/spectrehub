@@ -62,6 +62,58 @@ func (c *Collector) CollectFromDirectory(dir string) ([]models.ToolReport, error
 	return c.collectFiles(ctx, files)
 }
 
+// CollectFromPaths reads JSON files from multiple files or directories.
+func (c *Collector) CollectFromPaths(paths []string) ([]models.ToolReport, error) {
+	if len(paths) == 0 {
+		return nil, fmt.Errorf("no paths provided")
+	}
+
+	seen := make(map[string]bool)
+	var files []string
+
+	for _, path := range paths {
+		info, err := os.Stat(path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to stat path %s: %w", path, err)
+		}
+
+		if info.IsDir() {
+			dirFiles, err := c.findJSONFiles(path)
+			if err != nil {
+				return nil, fmt.Errorf("failed to find JSON files in %s: %w", path, err)
+			}
+			for _, file := range dirFiles {
+				if !seen[file] {
+					seen[file] = true
+					files = append(files, file)
+				}
+			}
+			continue
+		}
+
+		if filepath.Ext(path) != ".json" {
+			return nil, fmt.Errorf("file is not JSON: %s", path)
+		}
+		if !seen[path] {
+			seen[path] = true
+			files = append(files, path)
+		}
+	}
+
+	if len(files) == 0 {
+		return nil, fmt.Errorf("no JSON files found in provided paths")
+	}
+
+	if c.config.Verbose {
+		fmt.Printf("Found %d JSON file(s) to process\n", len(files))
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), c.config.Timeout)
+	defer cancel()
+
+	return c.collectFiles(ctx, files)
+}
+
 // findJSONFiles recursively finds all JSON files in a directory
 func (c *Collector) findJSONFiles(dir string) ([]string, error) {
 	var files []string
@@ -102,7 +154,7 @@ func (c *Collector) collectFiles(ctx context.Context, files []string) ([]models.
 			select {
 			case fileCh <- file:
 			case <-ctx.Done():
-				break
+				return
 			}
 		}
 		close(fileCh)

@@ -28,9 +28,27 @@ func DetectToolType(data []byte) (models.ToolType, error) {
 			return models.ToolKafka, nil
 		case "clickspectre":
 			return models.ToolClickHouse, nil
+		case "pgspectre":
+			return models.ToolPg, nil
+		case "mongospectre":
+			return models.ToolMongo, nil
 		default:
 			// Unknown tool specified
 			return models.ToolUnknown, fmt.Errorf("unknown tool: %s", toolField.Tool)
+		}
+	}
+
+	// Phase 1b: Try tool field inside metadata
+	var metadataToolField struct {
+		Metadata struct {
+			Tool string `json:"tool"`
+		} `json:"metadata"`
+	}
+
+	if err := json.Unmarshal(data, &metadataToolField); err == nil && metadataToolField.Metadata.Tool != "" {
+		switch metadataToolField.Metadata.Tool {
+		case "pgspectre":
+			return models.ToolPg, nil
 		}
 	}
 
@@ -82,6 +100,36 @@ func detectByStructure(data []byte) (models.ToolType, error) {
 		if summary, ok := structure["summary"].(map[string]interface{}); ok {
 			if hasKey(summary, "total_buckets") || hasKey(summary, "missing_buckets") {
 				return models.ToolS3, nil
+			}
+		}
+	}
+
+	// Check for PgSpectre indicators
+	if hasKey(structure, "metadata") && hasKey(structure, "findings") && hasKey(structure, "summary") {
+		if metadata, ok := structure["metadata"].(map[string]interface{}); ok {
+			if tool, ok := metadata["tool"].(string); ok && tool == "pgspectre" {
+				return models.ToolPg, nil
+			}
+		}
+		if scanned, ok := structure["scanned"].(map[string]interface{}); ok {
+			if hasKey(scanned, "tables") && hasKey(scanned, "indexes") {
+				return models.ToolPg, nil
+			}
+		}
+	}
+
+	// Check for MongoSpectre indicators
+	if hasKey(structure, "metadata") && hasKey(structure, "findings") && hasKey(structure, "summary") {
+		if metadata, ok := structure["metadata"].(map[string]interface{}); ok {
+			if hasKey(metadata, "mongodbVersion") || hasKey(metadata, "uriHash") || hasKey(metadata, "repoPath") {
+				return models.ToolMongo, nil
+			}
+		}
+		if findings, ok := structure["findings"].([]interface{}); ok && len(findings) > 0 {
+			if first, ok := findings[0].(map[string]interface{}); ok {
+				if hasKey(first, "database") && hasKey(first, "collection") {
+					return models.ToolMongo, nil
+				}
 			}
 		}
 	}
