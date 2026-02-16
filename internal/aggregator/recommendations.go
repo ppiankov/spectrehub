@@ -157,6 +157,10 @@ func (r *RecommendationGenerator) getResourceName(tool string) string {
 		return "Kafka topics"
 	case models.ToolClickHouse:
 		return "ClickHouse tables"
+	case models.ToolPg:
+		return "Postgres tables/indexes"
+	case models.ToolMongo:
+		return "MongoDB collections/indexes"
 	default:
 		return "resources"
 	}

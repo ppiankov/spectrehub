@@ -1,0 +1,13 @@
+{
+  "tool": "unknownspectre",
+  "version": "0.1.0",
+  "timestamp": "2026-02-10T13:00:00Z",
+  "summary": {
+    "total": 1
+  },
+  "findings": [
+    {
+      "message": "unsupported tool sample"
+    }
+  ]
+}

@@ -10,6 +10,8 @@ const (
 	ToolS3         ToolType = "s3spectre"
 	ToolKafka      ToolType = "kafkaspectre"
 	ToolClickHouse ToolType = "clickspectre"
+	ToolPg         ToolType = "pgspectre"
+	ToolMongo      ToolType = "mongospectre"
 	ToolUnknown    ToolType = "unknown"
 )
 
@@ -45,6 +47,18 @@ var SupportedTools = map[ToolType]ToolInfo{
 		Name:          "clickspectre",
 		MinVersion:    "0.1.0",
 		HasValidation: true,
+		HasNormalizer: true,
+	},
+	ToolPg: {
+		Name:          "pgspectre",
+		MinVersion:    "0.1.0",
+		HasValidation: false,
+		HasNormalizer: true,
+	},
+	ToolMongo: {
+		Name:          "mongospectre",
+		MinVersion:    "0.1.0",
+		HasValidation: false,
 		HasNormalizer: true,
 	},
 }
@@ -97,25 +111,25 @@ type NormalizedIssue struct {
 
 // AggregatedReport contains the complete aggregated output from all tools
 type AggregatedReport struct {
-	Timestamp       time.Time              `json:"timestamp"`
-	Issues          []NormalizedIssue      `json:"issues"`        // Atomic issue list
-	ToolReports     map[string]ToolReport  `json:"tool_reports"`  // Per-tool raw data
-	Summary         CrossToolSummary       `json:"summary"`       // Overall statistics
-	Trend           *Trend                 `json:"trend,omitempty"` // Comparison with previous run
-	Recommendations []Recommendation       `json:"recommendations"` // Prioritized actions
+	Timestamp       time.Time             `json:"timestamp"`
+	Issues          []NormalizedIssue     `json:"issues"`          // Atomic issue list
+	ToolReports     map[string]ToolReport `json:"tool_reports"`    // Per-tool raw data
+	Summary         CrossToolSummary      `json:"summary"`         // Overall statistics
+	Trend           *Trend                `json:"trend,omitempty"` // Comparison with previous run
+	Recommendations []Recommendation      `json:"recommendations"` // Prioritized actions
 }
 
 // ToolReport contains data for a single tool
 type ToolReport struct {
-	Tool         string      `json:"tool"`
-	Version      string      `json:"version"`
-	Timestamp    time.Time   `json:"timestamp"`
-	RawData      interface{} `json:"raw_data"`      // Original tool output
-	Summary      interface{} `json:"summary"`       // Tool-specific summary
-	Score        float64     `json:"score"`         // Health score (0-100)
-	Status       string      `json:"status"`        // "supported" or "unsupported"
-	IssueCount   int         `json:"issue_count"`   // Total issues from this tool
-	IsSupported  bool        `json:"is_supported"`  // Whether tool is explicitly supported
+	Tool        string      `json:"tool"`
+	Version     string      `json:"version"`
+	Timestamp   time.Time   `json:"timestamp"`
+	RawData     interface{} `json:"raw_data"`     // Original tool output
+	Summary     interface{} `json:"summary"`      // Tool-specific summary
+	Score       float64     `json:"score"`        // Health score (0-100)
+	Status      string      `json:"status"`       // "supported" or "unsupported"
+	IssueCount  int         `json:"issue_count"`  // Total issues from this tool
+	IsSupported bool        `json:"is_supported"` // Whether tool is explicitly supported
 }
 
 // CrossToolSummary provides aggregate statistics across all tools
@@ -124,8 +138,8 @@ type CrossToolSummary struct {
 	IssuesByTool     map[string]int `json:"issues_by_tool"`
 	IssuesByCategory map[string]int `json:"issues_by_category"`
 	IssuesBySeverity map[string]int `json:"issues_by_severity"`
-	HealthScore      string         `json:"health_score"`    // excellent, good, warning, critical, severe
-	ScorePercent     float64        `json:"score_percent"`   // 0-100
+	HealthScore      string         `json:"health_score"`  // excellent, good, warning, critical, severe
+	ScorePercent     float64        `json:"score_percent"` // 0-100
 	TotalTools       int            `json:"total_tools"`
 	SupportedTools   int            `json:"supported_tools"`
 	UnsupportedTools int            `json:"unsupported_tools"`
@@ -133,8 +147,8 @@ type CrossToolSummary struct {
 
 // Trend represents change between current and previous run
 type Trend struct {
-	Direction      string    `json:"direction"`       // "improving", "degrading", "stable"
-	ChangePercent  float64   `json:"change_percent"`  // negative = improvement
+	Direction      string    `json:"direction"`      // "improving", "degrading", "stable"
+	ChangePercent  float64   `json:"change_percent"` // negative = improvement
 	PreviousIssues int       `json:"previous_issues"`
 	CurrentIssues  int       `json:"current_issues"`
 	ComparedWith   time.Time `json:"compared_with"`   // When previous run was
@@ -146,14 +160,14 @@ type Trend struct {
 type Recommendation struct {
 	Severity string `json:"severity"` // critical, high, medium, low
 	Tool     string `json:"tool"`
-	Action   string `json:"action"`   // What to do
-	Impact   string `json:"impact"`   // Why it matters
-	Count    int    `json:"count"`    // How many items
+	Action   string `json:"action"` // What to do
+	Impact   string `json:"impact"` // Why it matters
+	Count    int    `json:"count"`  // How many items
 }
 
 // TrendSummary provides historical trend analysis
 type TrendSummary struct {
-	TimeRange      string                `json:"time_range"`      // e.g., "Last 7 days"
+	TimeRange      string                `json:"time_range"` // e.g., "Last 7 days"
 	RunsAnalyzed   int                   `json:"runs_analyzed"`
 	IssueSparkline []int                 `json:"issue_sparkline"` // Issue counts over time
 	ByTool         map[string]*ToolTrend `json:"by_tool"`
@@ -164,8 +178,8 @@ type ToolTrend struct {
 	Name           string  `json:"name"`
 	CurrentIssues  int     `json:"current_issues"`
 	PreviousIssues int     `json:"previous_issues"`
-	Change         int     `json:"change"`          // Positive = more issues
-	ChangePercent  float64 `json:"change_percent"`  // Positive = more issues
+	Change         int     `json:"change"`         // Positive = more issues
+	ChangePercent  float64 `json:"change_percent"` // Positive = more issues
 }
 
 // CalculateHealthScore determines overall health based on issue counts

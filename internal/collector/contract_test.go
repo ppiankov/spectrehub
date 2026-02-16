@@ -18,6 +18,8 @@ func TestToolDetection(t *testing.T) {
 		{"../../testdata/contracts/s3spectre-v0.1.0.json", models.ToolS3},
 		{"../../testdata/contracts/kafkaspectre-v0.1.0.json", models.ToolKafka},
 		{"../../testdata/contracts/clickspectre-v0.1.0.json", models.ToolClickHouse},
+		{"../../testdata/contracts/pgspectre-v0.1.0.json", models.ToolPg},
+		{"../../testdata/contracts/mongospectre-v0.1.0.json", models.ToolMongo},
 	}
 
 	for _, tt := range tests {
@@ -49,6 +51,8 @@ func TestParsingSucceeds(t *testing.T) {
 		{"../../testdata/contracts/s3spectre-v0.1.0.json", models.ToolS3},
 		{"../../testdata/contracts/kafkaspectre-v0.1.0.json", models.ToolKafka},
 		{"../../testdata/contracts/clickspectre-v0.1.0.json", models.ToolClickHouse},
+		{"../../testdata/contracts/pgspectre-v0.1.0.json", models.ToolPg},
+		{"../../testdata/contracts/mongospectre-v0.1.0.json", models.ToolMongo},
 	}
 
 	for _, tt := range tests {
@@ -78,7 +82,7 @@ func TestParsingSucceeds(t *testing.T) {
 // TestNormalizedIssueCounts verifies that normalized issue counts match expected values
 func TestNormalizedIssueCounts(t *testing.T) {
 	tests := []struct {
-		file          string
+		file           string
 		expectedIssues int
 	}{
 		{"../../testdata/contracts/vaultspectre-v0.1.0.json", 8}, // 5 missing + 2 access_denied + 1 error
@@ -142,7 +146,7 @@ func TestInvalidInputs(t *testing.T) {
 
 // TestUnsupportedTools verifies that unknown tools are handled gracefully
 func TestUnsupportedTools(t *testing.T) {
-	data, err := os.ReadFile("../../testdata/unsupported/pgspectre-v0.1.0.json")
+	data, err := os.ReadFile("../../testdata/unsupported/unknownspectre-v0.1.0.json")
 	if err != nil {
 		t.Fatalf("Failed to read test file: %v", err)
 	}
@@ -172,7 +176,7 @@ func TestUnsupportedTools(t *testing.T) {
 
 	// Verify tool type is marked as unknown
 	if models.IsSupportedTool(toolType) {
-		t.Error("pgspectre should not be in supported tools list")
+		t.Error("unknown tool should not be in supported tools list")
 	}
 }
 
@@ -190,8 +194,8 @@ func TestCollectFromDirectory(t *testing.T) {
 		t.Fatalf("CollectFromDirectory failed: %v", err)
 	}
 
-	if len(reports) != 4 {
-		t.Errorf("Expected 4 reports, got %d", len(reports))
+	if len(reports) != 6 {
+		t.Errorf("Expected 6 reports, got %d", len(reports))
 	}
 
 	// Verify we got one report from each tool
@@ -200,7 +204,7 @@ func TestCollectFromDirectory(t *testing.T) {
 		toolsSeen[report.Tool] = true
 	}
 
-	expectedTools := []string{"vaultspectre", "s3spectre", "kafkaspectre", "clickspectre"}
+	expectedTools := []string{"vaultspectre", "s3spectre", "kafkaspectre", "clickspectre", "pgspectre", "mongospectre"}
 	for _, tool := range expectedTools {
 		if !toolsSeen[tool] {
 			t.Errorf("Expected to see report from %s", tool)
@@ -245,6 +249,7 @@ func TestVersionExtraction(t *testing.T) {
 		{"../../testdata/contracts/vaultspectre-v0.1.0.json", "0.1.0"},
 		{"../../testdata/contracts/s3spectre-v0.1.0.json", "0.1.0"},
 		{"../../testdata/contracts/clickspectre-v0.1.0.json", "0.1.0"},
+		{"../../testdata/contracts/mongospectre-v0.1.0.json", "0.1.0"},
 	}
 
 	for _, tt := range tests {

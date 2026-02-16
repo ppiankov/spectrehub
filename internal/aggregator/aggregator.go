@@ -116,6 +116,10 @@ func (a *Aggregator) calculateHealthScore(report *models.AggregatedReport) {
 			if cr, ok := toolReport.RawData.(*models.ClickHouseReport); ok {
 				totalResources += len(cr.Tables)
 			}
+		case models.ToolPg:
+			if pr, ok := toolReport.RawData.(*models.PgReport); ok {
+				totalResources += pr.Scanned.Tables
+			}
 		}
 	}
 
