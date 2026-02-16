@@ -269,7 +269,7 @@ func (r *TextReporter) printTrendInfo(trend *models.Trend) {
 
 // printf is a helper to write formatted output
 func (r *TextReporter) printf(format string, args ...interface{}) {
-	fmt.Fprintf(r.writer, format, args...)
+	_, _ = fmt.Fprintf(r.writer, format, args...)
 }
 
 // toTitle converts the first character to uppercase (simple title case)
