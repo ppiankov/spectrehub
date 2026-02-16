@@ -1,0 +1,77 @@
+{
+  "metadata": {
+    "tool": "pgspectre",
+    "version": "0.1.0",
+    "command": "audit",
+    "timestamp": "2026-02-10T12:00:00Z"
+  },
+  "findings": [
+    {
+      "type": "UNUSED_TABLE",
+      "severity": "high",
+      "schema": "public",
+      "table": "old_data",
+      "message": "table has no sequential or index scans",
+      "detail": {
+        "live_tuples": "0",
+        "dead_tuples": "0"
+      }
+    },
+    {
+      "type": "UNUSED_INDEX",
+      "severity": "medium",
+      "schema": "public",
+      "table": "users",
+      "index": "idx_users_email",
+      "message": "index \"idx_users_email\" has never been used (1.2 MB)",
+      "detail": {
+        "size_bytes": "1258291",
+        "size": "1.2 MB",
+        "idx_scan": "0"
+      }
+    },
+    {
+      "type": "MISSING_TABLE",
+      "severity": "high",
+      "schema": "",
+      "table": "legacy_orders",
+      "message": "table \"legacy_orders\" referenced in code but does not exist in database"
+    },
+    {
+      "type": "MISSING_COLUMN",
+      "severity": "medium",
+      "schema": "public",
+      "table": "orders",
+      "column": "archived_at",
+      "message": "column \"archived_at\" referenced in code but does not exist in table \"orders\""
+    },
+    {
+      "type": "UNINDEXED_QUERY",
+      "severity": "medium",
+      "schema": "public",
+      "table": "events",
+      "column": "created_at",
+      "message": "column \"created_at\" used in WHERE/ORDER BY (3 references) but has no index"
+    },
+    {
+      "type": "NO_PRIMARY_KEY",
+      "severity": "medium",
+      "schema": "public",
+      "table": "logs",
+      "message": "table has no primary key"
+    }
+  ],
+  "maxSeverity": "high",
+  "summary": {
+    "total": 6,
+    "high": 2,
+    "medium": 4,
+    "low": 0,
+    "info": 0
+  },
+  "scanned": {
+    "tables": 42,
+    "indexes": 120,
+    "schemas": 3
+  }
+}
