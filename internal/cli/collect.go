@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/ppiankov/spectrehub/internal/aggregator"
 	"github.com/ppiankov/spectrehub/internal/collector"
@@ -24,13 +25,13 @@ var (
 
 // collectCmd represents the collect command
 var collectCmd = &cobra.Command{
-	Use:   "collect <directory>",
+	Use:   "collect <path>...",
 	Short: "Collect and aggregate reports from Spectre tools",
-	Long: `Collect JSON reports from VaultSpectre, S3Spectre, KafkaSpectre, and ClickSpectre,
+	Long: `Collect JSON reports from VaultSpectre, S3Spectre, KafkaSpectre, ClickSpectre, PgSpectre, and MongoSpectre,
 aggregate them into a unified view, and generate reports.
 
 The command will:
-1. Scan the directory for JSON report files
+1. Scan the path(s) for JSON report files
 2. Detect and parse each tool's output format
 3. Normalize issues into a common schema
 4. Calculate health scores and trends
@@ -39,9 +40,10 @@ The command will:
 
 Example:
   spectrehub collect ./reports
+  spectrehub collect ./reports/*.json
   spectrehub collect ./reports --format json --output summary.json
   spectrehub collect ./reports --fail-threshold 50 --store`,
-	Args: cobra.ExactArgs(1),
+	Args: cobra.MinimumNArgs(1),
 	RunE: runCollect,
 }
 
@@ -59,7 +61,7 @@ func init() {
 }
 
 func runCollect(cmd *cobra.Command, args []string) error {
-	reportDir := args[0]
+	reportPaths := args
 
 	// Apply config defaults if flags not set
 	if collectFormat == "" {
@@ -72,7 +74,7 @@ func runCollect(cmd *cobra.Command, args []string) error {
 		collectThreshold = cfg.FailThreshold
 	}
 
-	logVerbose("Collecting reports from: %s", reportDir)
+	logVerbose("Collecting reports from: %s", strings.Join(reportPaths, ", "))
 	logDebug("Config: format=%s, store=%v, threshold=%d", collectFormat, collectStore, collectThreshold)
 
 	// Step 1: Collect tool reports
@@ -81,14 +83,14 @@ func runCollect(cmd *cobra.Command, args []string) error {
 		Verbose:        cfg.Verbose,
 	})
 
-	toolReports, err := c.CollectFromDirectory(reportDir)
+	toolReports, err := c.CollectFromPaths(reportPaths)
 	if err != nil {
 		logError("Failed to collect reports: %v", err)
 		return err
 	}
 
 	if len(toolReports) == 0 {
-		logError("No valid reports found in directory: %s", reportDir)
+		logError("No valid reports found in provided paths")
 		return &ValidationError{Message: "no valid reports found"}
 	}
 
@@ -183,7 +185,7 @@ func generateOutput(report *models.AggregatedReport, format, outputPath string) 
 		if err != nil {
 			return fmt.Errorf("failed to create output file: %w", err)
 		}
-		defer writer.Close()
+		defer func() { _ = writer.Close() }()
 	}
 
 	switch format {
@@ -209,7 +211,7 @@ func generateOutput(report *models.AggregatedReport, format, outputPath string) 
 			if err != nil {
 				return fmt.Errorf("failed to create JSON file: %w", err)
 			}
-			defer jsonFile.Close()
+			defer func() { _ = jsonFile.Close() }()
 
 			jsonReporter := reporter.NewJSONReporter(jsonFile, true)
 			return jsonReporter.Generate(report)
@@ -220,7 +222,9 @@ func generateOutput(report *models.AggregatedReport, format, outputPath string) 
 				return err
 			}
 
-			fmt.Fprintf(writer, "\n=== JSON Output ===\n\n")
+			if _, err := fmt.Fprintf(writer, "\n=== JSON Output ===\n\n"); err != nil {
+				return err
+			}
 
 			jsonReporter := reporter.NewJSONReporter(writer, true)
 			return jsonReporter.Generate(report)
