@@ -2,7 +2,7 @@
 
 **The unified infrastructure audit aggregator for the Spectre tool family**
 
-SpectreHub is the central brain of the Spectre ecosystem. It aggregates JSON reports from VaultSpectre, S3Spectre, KafkaSpectre, and ClickSpectre into a coherent, actionable view of your infrastructure drift.
+SpectreHub is the central brain of the Spectre ecosystem. It discovers installed spectre tools, executes them against configured infrastructure, and aggregates JSON reports from VaultSpectre, S3Spectre, KafkaSpectre, ClickSpectre, PgSpectre, and MongoSpectre into a coherent, actionable view of your infrastructure drift.
 
 ## Overview
 
@@ -52,6 +52,8 @@ SpectreHub accepts JSON reports from:
 - **S3Spectre** - AWS S3 bucket analysis
 - **KafkaSpectre** - Kafka cluster audits
 - **ClickSpectre** - ClickHouse table usage analysis
+- **PgSpectre** - PostgreSQL security audits
+- **MongoSpectre** - MongoDB configuration audits
 
 ### Input Format Requirements
 
@@ -169,14 +171,20 @@ Reports are stored in `.spectre/runs/` for historical tracking:
 # Install
 go install github.com/ppiankov/spectrehub/cmd/spectrehub@latest
 
-# Collect reports
+# Discover what's available
+spectrehub discover
+
+# Run all detected tools and aggregate
+spectrehub run
+
+# Or collect pre-existing reports
 spectrehub collect ./reports
 
 # View trends
 spectrehub summarize
 
 # CI/CD integration
-spectrehub collect ./reports --fail-threshold 50
+spectrehub run --fail-threshold 50
 ```
 
 ## Configuration
@@ -248,6 +256,37 @@ esac
 
 ## Commands Reference
 
+### `spectrehub discover`
+
+Detect available spectre tools and infrastructure targets. Read-only — no tools are executed.
+
+```bash
+spectrehub discover
+spectrehub discover --format json
+```
+
+**Flags:**
+- `--format` - Output format (text or json)
+
+### `spectrehub run`
+
+Discover, execute, and aggregate in one step.
+
+```bash
+spectrehub run
+spectrehub run --dry-run
+spectrehub run --format json --fail-threshold 50
+spectrehub run --timeout 2m
+```
+
+**Flags:**
+- `--dry-run` - Show discovery plan without executing
+- `--format` - Output format (text, json, or both)
+- `--output` / `-o` - Output file path
+- `--fail-threshold` - Exit 1 if issues exceed threshold
+- `--store` - Persist results for trend analysis
+- `--timeout` - Per-tool execution timeout (default: 5m)
+
 ### `spectrehub collect <directory>`
 
 Collect and aggregate reports from Spectre tools.
@@ -295,16 +334,15 @@ spectrehub version
 
 ### Local Development
 
-Run Spectre tools locally and aggregate with SpectreHub for a unified view:
+SpectreHub discovers and runs all available spectre tools automatically:
 
 ```bash
-# Run individual tools
-vaultspectre check --json > vault.json
-s3spectre check --json > s3.json
-kafkaspectre audit --json > kafka.json
-clickspectre analyze --json > click.json
+# One command — discover, execute, aggregate
+spectrehub run
 
-# Aggregate
+# Or run individual tools manually and aggregate
+vaultspectre scan --format json > vault.json
+kafkaspectre audit --format json > kafka.json
 spectrehub collect .
 ```
 
@@ -312,15 +350,8 @@ spectrehub collect .
 
 ```yaml
 # .github/workflows/spectre-audit.yml
-- name: Run Spectre Audits
-  run: |
-    vaultspectre check --json > vault.json
-    s3spectre check --json > s3.json
-    kafkaspectre audit --json > kafka.json
-    clickspectre analyze --json > click.json
-
-- name: Aggregate with SpectreHub
-  run: spectrehub collect . --fail-threshold 50
+- name: Run SpectreHub Audit
+  run: spectrehub run --fail-threshold 50 --format json --store
 ```
 
 ### Weekly Infrastructure Review
@@ -480,6 +511,8 @@ spectrehub/
 │   ├── storage/           # Storage layer (local filesystem)
 │   ├── reporter/          # Text and JSON reporters
 │   ├── config/            # Configuration management
+│   ├── discovery/         # Tool and target detection
+│   ├── runner/            # Tool execution engine
 │   └── cli/               # Cobra CLI commands
 ├── testdata/
 │   ├── contracts/         # Real tool outputs for testing
@@ -500,12 +533,17 @@ spectrehub/
 ✅ Config file support
 ✅ Exit code contract for CI/CD
 
-### v0.2 (Planned)
+### v0.2 (Current)
 
+✅ `discover` command - Detect available tools and targets
+✅ `run` command - Discover + execute + aggregate in one step
+✅ PgSpectre and MongoSpectre support
+
+### v0.3 (Planned)
+
+- [ ] GitHub Action for automated audits
 - [ ] `diff` command - Compare any two runs explicitly
 - [ ] `query` command - Filter stored reports
-- [ ] `watch` mode - Continuous monitoring
-- [ ] Web-based dashboard (optional)
 
 ### v0.3+ (User-Driven)
 
