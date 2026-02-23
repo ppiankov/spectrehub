@@ -132,5 +132,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 		Store:      runStore,
 		StorageDir: runStorageDir,
 		Threshold:  runThreshold,
+		LicenseKey: cfg.LicenseKey,
+		APIURL:     cfg.APIURL,
 	})
 }

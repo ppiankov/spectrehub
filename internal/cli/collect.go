@@ -96,5 +96,7 @@ func runCollect(cmd *cobra.Command, args []string) error {
 		Store:      collectStore,
 		StorageDir: collectStorageDir,
 		Threshold:  collectThreshold,
+		LicenseKey: cfg.LicenseKey,
+		APIURL:     cfg.APIURL,
 	})
 }

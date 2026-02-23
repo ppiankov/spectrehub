@@ -1,11 +1,13 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/ppiankov/spectrehub/internal/aggregator"
+	"github.com/ppiankov/spectrehub/internal/apiclient"
 	"github.com/ppiankov/spectrehub/internal/models"
 	"github.com/ppiankov/spectrehub/internal/reporter"
 	"github.com/ppiankov/spectrehub/internal/storage"
@@ -18,6 +20,9 @@ type PipelineConfig struct {
 	Store      bool
 	StorageDir string
 	Threshold  int
+	LicenseKey string
+	APIURL     string
+	Repo       string
 }
 
 // RunPipeline executes the aggregation pipeline on a set of tool reports.
@@ -81,13 +86,18 @@ func RunPipeline(toolReports []models.ToolReport, pcfg PipelineConfig) error {
 		logVerbose("Stored report in: %s", storagePath)
 	}
 
-	// Step 5: Generate output
+	// Step 5: Submit to API if license key is configured
+	if pcfg.LicenseKey != "" {
+		submitToAPI(aggregatedReport, pcfg)
+	}
+
+	// Step 6: Generate output
 	if err := generateOutput(aggregatedReport, pcfg.Format, pcfg.Output); err != nil {
 		logError("Failed to generate output: %v", err)
 		return err
 	}
 
-	// Step 6: Check threshold
+	// Step 7: Check threshold
 	if pcfg.Threshold > 0 && aggregatedReport.Summary.TotalIssues > pcfg.Threshold {
 		logError("Issue count (%d) exceeds threshold (%d)", aggregatedReport.Summary.TotalIssues, pcfg.Threshold)
 		return &ThresholdExceededError{
@@ -172,4 +182,34 @@ func getStoragePath(storageDir string) (string, error) {
 	}
 
 	return absPath, nil
+}
+
+// submitToAPI sends the aggregated report to the SpectreHub API.
+func submitToAPI(report *models.AggregatedReport, pcfg PipelineConfig) {
+	apiURL := pcfg.APIURL
+	if apiURL == "" {
+		apiURL = "https://api.spectrehub.dev"
+	}
+
+	client := apiclient.New(apiURL, pcfg.LicenseKey)
+	if client == nil {
+		return
+	}
+
+	rawJSON, _ := json.Marshal(report)
+
+	payload := apiclient.ReportPayload{
+		Repo:       pcfg.Repo,
+		TotalTools: report.Summary.TotalTools,
+		Issues:     report.Summary.TotalIssues,
+		Score:      report.Summary.ScorePercent,
+		Health:     report.Summary.HealthScore,
+		RawJSON:    string(rawJSON),
+	}
+
+	if err := client.SubmitReport(payload); err != nil {
+		logError("Failed to sync report to API: %v", err)
+	} else {
+		logVerbose("Report synced to SpectreHub API")
+	}
 }

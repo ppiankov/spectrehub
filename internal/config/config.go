@@ -27,6 +27,12 @@ type Config struct {
 
 	// Debug mode
 	Debug bool `mapstructure:"debug"`
+
+	// License key for API access (from config or SPECTREHUB_LICENSE_KEY)
+	LicenseKey string `mapstructure:"license_key"`
+
+	// API URL (defaults to https://api.spectrehub.dev)
+	APIURL string `mapstructure:"api_url"`
 }
 
 // DefaultConfig returns configuration with default values
@@ -63,6 +69,8 @@ func LoadFromFile(configPath string) (*Config, error) {
 	v.SetDefault("last_runs", defaults.LastRuns)
 	v.SetDefault("verbose", defaults.Verbose)
 	v.SetDefault("debug", defaults.Debug)
+	v.SetDefault("license_key", "")
+	v.SetDefault("api_url", "https://api.spectrehub.dev")
 
 	// Set config file settings
 	v.SetConfigName("spectrehub")
@@ -195,5 +203,13 @@ verbose: false
 
 # Enable debug mode
 debug: false
+
+# License key for SpectreHub API (paid features)
+# Get yours at https://spectrehub.dev
+# Can also be set via SPECTREHUB_LICENSE_KEY env var
+# license_key: sh_live_your_key_here
+
+# API URL (change only for self-hosted or testing)
+# api_url: https://api.spectrehub.dev
 `
 }
