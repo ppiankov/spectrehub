@@ -8,8 +8,13 @@ import (
 	"github.com/ppiankov/spectrehub/internal/models"
 )
 
-// ParseReport parses JSON data based on detected tool type
+// ParseReport parses JSON data based on detected tool type.
+// If the data is a spectre/v1 envelope, it is parsed directly regardless of tool type.
 func ParseReport(data []byte, toolType models.ToolType) (interface{}, error) {
+	if IsSpectreV1(data) {
+		return ParseSpectreV1Report(data)
+	}
+
 	switch toolType {
 	case models.ToolVault:
 		return ParseVaultReport(data)
@@ -26,6 +31,26 @@ func ParseReport(data []byte, toolType models.ToolType) (interface{}, error) {
 	default:
 		return ParseUnsupportedReport(data)
 	}
+}
+
+// ParseSpectreV1Report parses a spectre/v1 envelope JSON.
+func ParseSpectreV1Report(data []byte) (*models.SpectreV1Report, error) {
+	var report models.SpectreV1Report
+	if err := json.Unmarshal(data, &report); err != nil {
+		return nil, fmt.Errorf("failed to parse spectre/v1 report: %w", err)
+	}
+
+	if report.Schema != "spectre/v1" {
+		return nil, fmt.Errorf("expected schema spectre/v1, got %q", report.Schema)
+	}
+	if report.Tool == "" {
+		return nil, fmt.Errorf("spectre/v1 envelope missing required field: tool")
+	}
+	if report.Findings == nil {
+		report.Findings = []models.SpectreV1Finding{}
+	}
+
+	return &report, nil
 }
 
 // ParseVaultReport parses VaultSpectre JSON output

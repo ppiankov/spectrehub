@@ -1,0 +1,31 @@
+{
+  "schema": "spectre/v1",
+  "tool": "kafkaspectre",
+  "version": "0.2.1",
+  "timestamp": "2026-02-23T10:00:00Z",
+  "target": {
+    "type": "kafka",
+    "uri_hash": "sha256:kafka123"
+  },
+  "findings": [
+    {
+      "id": "UNUSED_TOPIC",
+      "severity": "high",
+      "location": "topic:dead-letter-queue",
+      "message": "no consumers, no recent writes (30 days)"
+    },
+    {
+      "id": "UNUSED_TOPIC",
+      "severity": "medium",
+      "location": "topic:staging-events",
+      "message": "no consumers, low throughput"
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "high": 1,
+    "medium": 1,
+    "low": 0,
+    "info": 0
+  }
+}

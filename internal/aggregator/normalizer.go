@@ -14,11 +14,17 @@ func NewNormalizer() *Normalizer {
 	return &Normalizer{}
 }
 
-// Normalize converts a tool report into normalized issues
+// Normalize converts a tool report into normalized issues.
+// spectre/v1 envelopes are normalized directly from their findings array.
 func (n *Normalizer) Normalize(report *models.ToolReport) ([]models.NormalizedIssue, error) {
 	if !report.IsSupported {
 		// Don't normalize unsupported tools
 		return nil, nil
+	}
+
+	// Check for spectre/v1 envelope first
+	if v1, ok := report.RawData.(*models.SpectreV1Report); ok {
+		return n.NormalizeSpectreV1(report, v1)
 	}
 
 	switch models.ToolType(report.Tool) {
@@ -36,6 +42,53 @@ func (n *Normalizer) Normalize(report *models.ToolReport) ([]models.NormalizedIs
 		return n.NormalizeMongo(report)
 	default:
 		return nil, fmt.Errorf("unknown tool type: %s", report.Tool)
+	}
+}
+
+// NormalizeSpectreV1 converts a spectre/v1 envelope into normalized issues.
+// The findings already contain id, severity, location, and message — the mapping is direct.
+func (n *Normalizer) NormalizeSpectreV1(report *models.ToolReport, v1 *models.SpectreV1Report) ([]models.NormalizedIssue, error) {
+	var issues []models.NormalizedIssue
+
+	for _, f := range v1.Findings {
+		category := mapSpectreV1IDToCategory(f.ID)
+
+		issue := models.NormalizedIssue{
+			Tool:      report.Tool,
+			Category:  category,
+			Severity:  mapSpectreSeverity(f.Severity),
+			Resource:  f.Location,
+			Evidence:  f.Message,
+			Count:     1,
+			FirstSeen: report.Timestamp,
+			LastSeen:  report.Timestamp,
+		}
+		issues = append(issues, issue)
+	}
+
+	return issues, nil
+}
+
+// mapSpectreV1IDToCategory maps spectre/v1 finding IDs to normalized categories.
+func mapSpectreV1IDToCategory(id string) string {
+	switch id {
+	case "MISSING_BUCKET", "MISSING_TABLE", "MISSING_COLUMN", "MISSING_COLLECTION", "MISSING_SECRET":
+		return models.StatusMissing
+	case "UNUSED_BUCKET", "UNUSED_TABLE", "UNUSED_INDEX", "UNUSED_TOPIC", "UNUSED_COLLECTION",
+		"UNREFERENCED_TABLE", "ORPHANED_INDEX":
+		return models.StatusUnused
+	case "STALE_PREFIX", "BLOATED_INDEX", "MISSING_VACUUM", "OVERSIZED_COLLECTION", "STALE_SECRET":
+		return models.StatusStale
+	case "VERSION_SPRAWL", "LIFECYCLE_MISCONFIG", "NO_PRIMARY_KEY", "DUPLICATE_INDEX",
+		"UNINDEXED_QUERY", "MISSING_INDEX", "MISSING_TTL", "SUGGEST_INDEX",
+		"ADMIN_IN_DATA_DB", "DUPLICATE_USER", "OVERPRIVILEGED_USER", "MULTIPLE_ADMIN_USERS":
+		return models.StatusMisconfig
+	case "RISKY", "ACCESS_DENIED":
+		return models.StatusAccessDeny
+	case "DYNAMIC_COLLECTION":
+		return models.StatusDrift
+	default:
+		return models.StatusError
 	}
 }
 

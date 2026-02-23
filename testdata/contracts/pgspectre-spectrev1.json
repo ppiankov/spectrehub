@@ -1,0 +1,37 @@
+{
+  "schema": "spectre/v1",
+  "tool": "pgspectre",
+  "version": "0.2.0",
+  "timestamp": "2026-02-23T10:00:00Z",
+  "target": {
+    "type": "postgres",
+    "uri_hash": "sha256:pg123"
+  },
+  "findings": [
+    {
+      "id": "UNUSED_TABLE",
+      "severity": "high",
+      "location": "public.old_data",
+      "message": "table has no sequential or index scans"
+    },
+    {
+      "id": "UNUSED_INDEX",
+      "severity": "medium",
+      "location": "public.users.index:idx_users_email",
+      "message": "index has never been used (1.2 MB)"
+    },
+    {
+      "id": "MISSING_TABLE",
+      "severity": "high",
+      "location": "legacy_orders",
+      "message": "table referenced in code but does not exist in database"
+    }
+  ],
+  "summary": {
+    "total": 3,
+    "high": 2,
+    "medium": 1,
+    "low": 0,
+    "info": 0
+  }
+}

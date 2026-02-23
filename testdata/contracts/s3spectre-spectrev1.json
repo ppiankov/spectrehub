@@ -1,0 +1,37 @@
+{
+  "schema": "spectre/v1",
+  "tool": "s3spectre",
+  "version": "0.2.1",
+  "timestamp": "2026-02-23T10:00:00Z",
+  "target": {
+    "type": "s3",
+    "uri_hash": "sha256:abc123"
+  },
+  "findings": [
+    {
+      "id": "MISSING_BUCKET",
+      "severity": "high",
+      "location": "my-old-backup-bucket",
+      "message": "referenced in code but not found in AWS"
+    },
+    {
+      "id": "UNUSED_BUCKET",
+      "severity": "medium",
+      "location": "temp-migration-bucket",
+      "message": "bucket appears unused"
+    },
+    {
+      "id": "STALE_PREFIX",
+      "severity": "low",
+      "location": "logs-archive/2023/",
+      "message": "stale prefix (last modified 400 days ago)"
+    }
+  ],
+  "summary": {
+    "total": 3,
+    "high": 1,
+    "medium": 1,
+    "low": 1,
+    "info": 0
+  }
+}
