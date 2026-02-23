@@ -93,7 +93,7 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show version information",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("SpectreHub v0.1.0-alpha")
+		fmt.Println("SpectreHub v0.2.0")
 		fmt.Println("The unified infrastructure audit aggregator")
 	},
 }
