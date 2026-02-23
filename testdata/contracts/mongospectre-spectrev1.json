@@ -1,0 +1,31 @@
+{
+  "schema": "spectre/v1",
+  "tool": "mongospectre",
+  "version": "0.2.0",
+  "timestamp": "2026-02-23T10:00:00Z",
+  "target": {
+    "type": "mongodb",
+    "uri_hash": "sha256:mongo123"
+  },
+  "findings": [
+    {
+      "id": "UNUSED_COLLECTION",
+      "severity": "medium",
+      "location": "mydb.legacy_logs",
+      "message": "collection has zero reads in 90 days"
+    },
+    {
+      "id": "MISSING_INDEX",
+      "severity": "medium",
+      "location": "mydb.events.created_at",
+      "message": "column used in queries but has no index"
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "high": 0,
+    "medium": 2,
+    "low": 0,
+    "info": 0
+  }
+}

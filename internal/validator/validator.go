@@ -27,8 +27,13 @@ func New() *Validator {
 	return &Validator{}
 }
 
-// ValidateReport validates a report based on tool type
+// ValidateReport validates a report based on tool type.
+// spectre/v1 envelopes are validated using the envelope validator regardless of tool type.
 func (v *Validator) ValidateReport(toolType models.ToolType, data []byte) error {
+	if isSpectreV1(data) {
+		return v.ValidateSpectreV1Report(data)
+	}
+
 	switch toolType {
 	case models.ToolVault:
 		return v.ValidateVaultReport(data)
@@ -42,6 +47,85 @@ func (v *Validator) ValidateReport(toolType models.ToolType, data []byte) error 
 		// Unknown tools are accepted but not validated
 		return nil
 	}
+}
+
+// isSpectreV1 checks if the data contains a spectre/v1 schema field.
+func isSpectreV1(data []byte) bool {
+	var s struct {
+		Schema string `json:"schema"`
+	}
+	if err := json.Unmarshal(data, &s); err == nil && s.Schema == "spectre/v1" {
+		return true
+	}
+	return false
+}
+
+// ValidateSpectreV1Report validates a spectre/v1 envelope.
+func (v *Validator) ValidateSpectreV1Report(data []byte) error {
+	var report models.SpectreV1Report
+	if err := json.Unmarshal(data, &report); err != nil {
+		return &ValidationError{
+			Tool:   "spectre/v1",
+			Errors: []string{fmt.Sprintf("Failed to parse JSON: %v", err)},
+		}
+	}
+
+	var errs []string
+
+	if report.Schema != "spectre/v1" {
+		errs = append(errs, fmt.Sprintf("Invalid schema: %q (expected spectre/v1)", report.Schema))
+	}
+	if report.Tool == "" {
+		errs = append(errs, "Missing required field: 'tool'")
+	}
+	if report.Version == "" {
+		errs = append(errs, "Missing required field: 'version'")
+	}
+	if report.Timestamp.IsZero() {
+		errs = append(errs, "Missing or invalid field: 'timestamp'")
+	}
+
+	// Validate target
+	if report.Target.Type == "" {
+		errs = append(errs, "Missing required field: 'target.type'")
+	} else if report.Tool != "" {
+		if expected, ok := models.SpectreV1TargetTypes[report.Tool]; ok {
+			if report.Target.Type != expected {
+				errs = append(errs, fmt.Sprintf("target.type %q does not match tool %q (expected %q)", report.Target.Type, report.Tool, expected))
+			}
+		}
+	}
+
+	// Validate findings
+	if report.Findings == nil {
+		errs = append(errs, "Missing required field: 'findings' (must be array, not null)")
+	}
+	for i, f := range report.Findings {
+		if f.ID == "" {
+			errs = append(errs, fmt.Sprintf("findings[%d]: missing required field 'id'", i))
+		}
+		if !models.ValidSpectreV1Severities[f.Severity] {
+			errs = append(errs, fmt.Sprintf("findings[%d]: invalid severity %q (allowed: high, medium, low, info)", i, f.Severity))
+		}
+		if f.Location == "" {
+			errs = append(errs, fmt.Sprintf("findings[%d]: missing required field 'location'", i))
+		}
+		if f.Message == "" {
+			errs = append(errs, fmt.Sprintf("findings[%d]: missing required field 'message'", i))
+		}
+	}
+
+	// Validate summary totals match
+	expectedTotal := len(report.Findings)
+	if report.Summary.Total != expectedTotal {
+		errs = append(errs, fmt.Sprintf("summary.total=%d does not match findings count=%d", report.Summary.Total, expectedTotal))
+	}
+
+	if len(errs) > 0 {
+		return &ValidationError{Tool: "spectre/v1", Errors: errs}
+	}
+
+	return nil
 }
 
 // ValidateVaultReport validates VaultSpectre JSON output

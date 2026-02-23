@@ -7,35 +7,41 @@ import (
 	"github.com/ppiankov/spectrehub/internal/models"
 )
 
+// IsSpectreV1 returns true if the JSON data contains a spectre/v1 schema field.
+func IsSpectreV1(data []byte) bool {
+	var schemaField struct {
+		Schema string `json:"schema"`
+	}
+	if err := json.Unmarshal(data, &schemaField); err == nil && schemaField.Schema == "spectre/v1" {
+		return true
+	}
+	return false
+}
+
 // DetectToolType identifies which Spectre tool produced the JSON data
-// It uses a two-phase approach:
+// It uses a three-phase approach:
+// 0. Check for spectre/v1 envelope (schema: "spectre/v1")
 // 1. Check for explicit "tool" field
 // 2. Fallback to structural analysis
 func DetectToolType(data []byte) (models.ToolType, error) {
+	// Phase 0: Check for spectre/v1 envelope
+	if IsSpectreV1(data) {
+		var envelope struct {
+			Tool string `json:"tool"`
+		}
+		if err := json.Unmarshal(data, &envelope); err == nil && envelope.Tool != "" {
+			return mapToolName(envelope.Tool)
+		}
+		return models.ToolUnknown, fmt.Errorf("spectre/v1 envelope missing tool field")
+	}
+
 	// Phase 1: Try to find explicit tool field
 	var toolField struct {
 		Tool string `json:"tool"`
 	}
 
 	if err := json.Unmarshal(data, &toolField); err == nil && toolField.Tool != "" {
-		// Map tool string to ToolType
-		switch toolField.Tool {
-		case "vaultspectre":
-			return models.ToolVault, nil
-		case "s3spectre":
-			return models.ToolS3, nil
-		case "kafkaspectre":
-			return models.ToolKafka, nil
-		case "clickspectre":
-			return models.ToolClickHouse, nil
-		case "pgspectre":
-			return models.ToolPg, nil
-		case "mongospectre":
-			return models.ToolMongo, nil
-		default:
-			// Unknown tool specified
-			return models.ToolUnknown, fmt.Errorf("unknown tool: %s", toolField.Tool)
-		}
+		return mapToolName(toolField.Tool)
 	}
 
 	// Phase 1b: Try tool field inside metadata
@@ -54,6 +60,26 @@ func DetectToolType(data []byte) (models.ToolType, error) {
 
 	// Phase 2: Structural analysis (fallback for tools without "tool" field)
 	return detectByStructure(data)
+}
+
+// mapToolName converts a tool name string to the corresponding ToolType.
+func mapToolName(name string) (models.ToolType, error) {
+	switch name {
+	case "vaultspectre":
+		return models.ToolVault, nil
+	case "s3spectre":
+		return models.ToolS3, nil
+	case "kafkaspectre":
+		return models.ToolKafka, nil
+	case "clickspectre":
+		return models.ToolClickHouse, nil
+	case "pgspectre":
+		return models.ToolPg, nil
+	case "mongospectre":
+		return models.ToolMongo, nil
+	default:
+		return models.ToolUnknown, fmt.Errorf("unknown tool: %s", name)
+	}
 }
 
 // detectByStructure uses JSON structure to identify the tool

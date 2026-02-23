@@ -1,0 +1,37 @@
+{
+  "schema": "spectre/v1",
+  "tool": "vaultspectre",
+  "version": "0.3.0",
+  "timestamp": "2026-02-23T10:00:00Z",
+  "target": {
+    "type": "vault",
+    "uri_hash": "sha256:vault123"
+  },
+  "findings": [
+    {
+      "id": "MISSING_SECRET",
+      "severity": "high",
+      "location": "secret/data/api-key",
+      "message": "referenced in code but not found in Vault"
+    },
+    {
+      "id": "ACCESS_DENIED",
+      "severity": "high",
+      "location": "secret/data/prod-db",
+      "message": "permission denied reading secret"
+    },
+    {
+      "id": "STALE_SECRET",
+      "severity": "low",
+      "location": "secret/data/old-token",
+      "message": "secret not accessed in 180 days"
+    }
+  ],
+  "summary": {
+    "total": 3,
+    "high": 2,
+    "medium": 0,
+    "low": 1,
+    "info": 0
+  }
+}
