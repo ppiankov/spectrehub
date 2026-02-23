@@ -1,16 +1,9 @@
 package cli
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
-	"github.com/ppiankov/spectrehub/internal/aggregator"
 	"github.com/ppiankov/spectrehub/internal/collector"
-	"github.com/ppiankov/spectrehub/internal/models"
-	"github.com/ppiankov/spectrehub/internal/reporter"
-	"github.com/ppiankov/spectrehub/internal/storage"
 	"github.com/spf13/cobra"
 )
 
@@ -77,7 +70,7 @@ func runCollect(cmd *cobra.Command, args []string) error {
 	logVerbose("Collecting reports from: %s", strings.Join(reportPaths, ", "))
 	logDebug("Config: format=%s, store=%v, threshold=%d", collectFormat, collectStore, collectThreshold)
 
-	// Step 1: Collect tool reports
+	// Step 1: Collect tool reports from files
 	c := collector.New(collector.Config{
 		MaxConcurrency: 10,
 		Verbose:        cfg.Verbose,
@@ -96,161 +89,12 @@ func runCollect(cmd *cobra.Command, args []string) error {
 
 	logVerbose("Collected %d tool reports", len(toolReports))
 
-	// Step 2: Aggregate reports
-	agg := aggregator.New()
-	aggregatedReport, err := agg.Aggregate(toolReports)
-	if err != nil {
-		logError("Failed to aggregate reports: %v", err)
-		return err
-	}
-
-	logVerbose("Aggregated %d issues across %d tools", aggregatedReport.Summary.TotalIssues, aggregatedReport.Summary.TotalTools)
-
-	// Step 3: Add trend analysis if storage is enabled and previous runs exist
-	if collectStore {
-		storagePath, err := getStoragePath(collectStorageDir)
-		if err != nil {
-			logError("Failed to get storage path: %v", err)
-			return err
-		}
-
-		store := storage.NewLocal(storagePath)
-
-		// Try to load previous run for trend comparison
-		if previousReport, err := store.GetLatestRun(); err == nil {
-			logVerbose("Found previous run from %s", previousReport.Timestamp)
-			agg.AddTrend(aggregatedReport, previousReport)
-		} else {
-			logDebug("No previous run found: %v", err)
-		}
-	}
-
-	// Step 4: Generate recommendations
-	recGen := aggregator.NewRecommendationGenerator()
-	aggregatedReport.Recommendations = recGen.GenerateRecommendations(aggregatedReport)
-
-	logVerbose("Generated %d recommendations", len(aggregatedReport.Recommendations))
-
-	// Step 5: Store if enabled
-	if collectStore {
-		storagePath, err := getStoragePath(collectStorageDir)
-		if err != nil {
-			logError("Failed to get storage path: %v", err)
-			return err
-		}
-
-		store := storage.NewLocal(storagePath)
-
-		// Ensure directory exists
-		if err := store.EnsureDirectoryExists(); err != nil {
-			logError("Failed to create storage directory: %v", err)
-			return err
-		}
-
-		if err := store.SaveAggregatedReport(aggregatedReport); err != nil {
-			logError("Failed to store report: %v", err)
-			return err
-		}
-
-		logVerbose("Stored report in: %s", storagePath)
-	}
-
-	// Step 6: Generate output
-	if err := generateOutput(aggregatedReport, collectFormat, collectOutput); err != nil {
-		logError("Failed to generate output: %v", err)
-		return err
-	}
-
-	// Step 7: Check threshold
-	if collectThreshold > 0 && aggregatedReport.Summary.TotalIssues > collectThreshold {
-		logError("Issue count (%d) exceeds threshold (%d)", aggregatedReport.Summary.TotalIssues, collectThreshold)
-		return &ThresholdExceededError{
-			IssueCount: aggregatedReport.Summary.TotalIssues,
-			Threshold:  collectThreshold,
-		}
-	}
-
-	return nil
-}
-
-// generateOutput generates the output in the specified format(s)
-func generateOutput(report *models.AggregatedReport, format, outputPath string) error {
-	// Determine output writer
-	var writer *os.File
-	if outputPath == "" {
-		writer = os.Stdout
-	} else {
-		var err error
-		writer, err = os.Create(outputPath)
-		if err != nil {
-			return fmt.Errorf("failed to create output file: %w", err)
-		}
-		defer func() { _ = writer.Close() }()
-	}
-
-	switch format {
-	case "text":
-		textReporter := reporter.NewTextReporter(writer)
-		return textReporter.Generate(report)
-
-	case "json":
-		jsonReporter := reporter.NewJSONReporter(writer, true) // pretty print
-		return jsonReporter.Generate(report)
-
-	case "both":
-		// If no output file specified, text goes to stdout, json to file
-		if outputPath == "" {
-			// Text to stdout
-			textReporter := reporter.NewTextReporter(os.Stdout)
-			if err := textReporter.Generate(report); err != nil {
-				return err
-			}
-
-			// JSON to default file
-			jsonFile, err := os.Create("spectrehub-report.json")
-			if err != nil {
-				return fmt.Errorf("failed to create JSON file: %w", err)
-			}
-			defer func() { _ = jsonFile.Close() }()
-
-			jsonReporter := reporter.NewJSONReporter(jsonFile, true)
-			return jsonReporter.Generate(report)
-		} else {
-			// Both to the same file (text first, then JSON)
-			textReporter := reporter.NewTextReporter(writer)
-			if err := textReporter.Generate(report); err != nil {
-				return err
-			}
-
-			if _, err := fmt.Fprintf(writer, "\n=== JSON Output ===\n\n"); err != nil {
-				return err
-			}
-
-			jsonReporter := reporter.NewJSONReporter(writer, true)
-			return jsonReporter.Generate(report)
-		}
-
-	default:
-		return fmt.Errorf("unsupported format: %s (use text, json, or both)", format)
-	}
-}
-
-// getStoragePath resolves the storage path
-func getStoragePath(storageDir string) (string, error) {
-	// Expand ~ to home directory
-	if len(storageDir) >= 2 && storageDir[:2] == "~/" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("failed to get home directory: %w", err)
-		}
-		storageDir = filepath.Join(home, storageDir[2:])
-	}
-
-	// Convert to absolute path
-	absPath, err := filepath.Abs(storageDir)
-	if err != nil {
-		return "", fmt.Errorf("failed to get absolute path: %w", err)
-	}
-
-	return absPath, nil
+	// Steps 2-7: Aggregate, trend, recommend, store, output, threshold
+	return RunPipeline(toolReports, PipelineConfig{
+		Format:     collectFormat,
+		Output:     collectOutput,
+		Store:      collectStore,
+		StorageDir: collectStorageDir,
+		Threshold:  collectThreshold,
+	})
 }
