@@ -98,6 +98,7 @@ func init() {
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(doctorCmd)
 	rootCmd.AddCommand(explainScoreCmd)
+	rootCmd.AddCommand(validateCmd)
 	rootCmd.AddCommand(versionCmd)
 }
 

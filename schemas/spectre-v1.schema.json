@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spectrehub.dev/schemas/spectre-v1.schema.json",
+  "title": "spectre/v1",
+  "description": "Unified output schema for Spectre family infrastructure audit tools. All spectre tools emit this format with --format spectrehub.",
+  "type": "object",
+  "required": ["schema", "tool", "version", "timestamp", "target", "findings", "summary"],
+  "properties": {
+    "schema": {
+      "const": "spectre/v1",
+      "description": "Schema identifier. Must be exactly 'spectre/v1'."
+    },
+    "tool": {
+      "type": "string",
+      "description": "Tool name that produced this report (e.g., vaultspectre, s3spectre).",
+      "examples": ["vaultspectre", "s3spectre", "kafkaspectre", "clickspectre", "pgspectre", "mongospectre"]
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of the tool that produced this report.",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of when the audit was performed."
+    },
+    "target": {
+      "$ref": "#/$defs/target"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      },
+      "description": "Array of findings. Empty array if no issues found."
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "target": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["s3", "postgres", "kafka", "clickhouse", "vault", "mongodb"],
+          "description": "Infrastructure type that was audited."
+        },
+        "uri_hash": {
+          "type": "string",
+          "description": "SHA-256 hash of the connection URI. Used for deduplication without exposing credentials."
+        }
+      },
+      "additionalProperties": false,
+      "description": "Describes what infrastructure was scanned."
+    },
+    "finding": {
+      "type": "object",
+      "required": ["id", "severity", "location", "message"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable finding identifier. Format: tool-specific, e.g., 'vault-missing-secret', 's3-public-bucket'. Used for deduplication and drift tracking."
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["high", "medium", "low", "info"],
+          "description": "Finding severity. 'high' = immediate risk, 'medium' = should fix, 'low' = cleanup, 'info' = informational."
+        },
+        "location": {
+          "type": "string",
+          "description": "Resource path or identifier where the finding was observed (e.g., 'secret/api/stripe-key', 'my-bucket', 'topic/user-events')."
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable description of the finding."
+        }
+      },
+      "additionalProperties": false,
+      "description": "A single audit finding."
+    },
+    "summary": {
+      "type": "object",
+      "required": ["total"],
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of findings. Must equal length of findings array."
+        },
+        "high": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of high-severity findings."
+        },
+        "medium": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of medium-severity findings."
+        },
+        "low": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of low-severity findings."
+        },
+        "info": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of info-severity findings."
+        }
+      },
+      "additionalProperties": false,
+      "description": "Summary counts by severity. total must equal len(findings)."
+    }
+  }
+}
