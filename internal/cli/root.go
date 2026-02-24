@@ -41,11 +41,12 @@ It provides:
 
 Quick start:
   spectrehub activate <license-key>
-  spectrehub discover
+  spectrehub doctor
   spectrehub run --store --repo org/name
   spectrehub status
 
 Other commands:
+  spectrehub discover
   spectrehub diff --last 2
   spectrehub export --format sarif
   spectrehub collect ./reports --repo org/name`,
@@ -95,6 +96,7 @@ func init() {
 	rootCmd.AddCommand(diffCmd)
 	rootCmd.AddCommand(exportCmd)
 	rootCmd.AddCommand(statusCmd)
+	rootCmd.AddCommand(doctorCmd)
 	rootCmd.AddCommand(versionCmd)
 }
 
