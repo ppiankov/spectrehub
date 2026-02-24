@@ -75,40 +75,49 @@ func (c *Client) SubmitReport(payload ReportPayload) error {
 	return nil
 }
 
-// ValidateLicense checks if the license key is valid.
-func (c *Client) ValidateLicense() (string, error) {
+// LicenseInfo holds validated license details from the API.
+type LicenseInfo struct {
+	Valid     bool   `json:"valid"`
+	Tier      string `json:"tier"`
+	MaxRepos  int    `json:"max_repos"`
+	Email     string `json:"email"`
+	ExpiresAt string `json:"expires_at"`
+}
+
+// ValidateLicense checks if the license key is valid and returns plan info.
+func (c *Client) ValidateLicense() (*LicenseInfo, error) {
 	if c == nil {
-		return "", nil
+		return nil, nil
 	}
 
 	req, err := http.NewRequest("GET", c.baseURL+"/v1/license/validate", nil)
 	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
+		return nil, fmt.Errorf("create request: %w", err)
 	}
 
 	req.Header.Set("Authorization", "Bearer "+c.licenseKey)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("validate license: %w", err)
+		return nil, fmt.Errorf("validate license: %w", err)
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, fmt.Errorf("invalid or expired license key")
+	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("invalid license key (HTTP %d)", resp.StatusCode)
+		return nil, fmt.Errorf("API error (HTTP %d)", resp.StatusCode)
 	}
 
-	var result struct {
-		Valid bool   `json:"valid"`
-		Tier  string `json:"tier"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("decode response: %w", err)
+	var info LicenseInfo
+	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
 	}
 
-	if !result.Valid {
-		return "", fmt.Errorf("license key is not active")
+	if !info.Valid {
+		return nil, fmt.Errorf("license key is not active")
 	}
 
-	return result.Tier, nil
+	return &info, nil
 }

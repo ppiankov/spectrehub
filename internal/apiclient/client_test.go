@@ -81,17 +81,26 @@ func TestValidateLicenseSuccess(t *testing.T) {
 			t.Errorf("expected /v1/license/validate, got %s", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{"valid": true, "tier": "team"})
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"valid":      true,
+			"tier":       "team",
+			"max_repos":  10,
+			"email":      "user@example.com",
+			"expires_at": "2027-02-01T00:00:00Z",
+		})
 	}))
 	defer ts.Close()
 
 	c := New(ts.URL, "sh_test_key123")
-	tier, err := c.ValidateLicense()
+	info, err := c.ValidateLicense()
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	if tier != "team" {
-		t.Errorf("expected tier=team, got %s", tier)
+	if info.Tier != "team" {
+		t.Errorf("expected tier=team, got %s", info.Tier)
+	}
+	if info.MaxRepos != 10 {
+		t.Errorf("expected max_repos=10, got %d", info.MaxRepos)
 	}
 }
 
@@ -110,11 +119,11 @@ func TestValidateLicenseInvalid(t *testing.T) {
 
 func TestValidateLicenseNilClient(t *testing.T) {
 	var c *Client
-	tier, err := c.ValidateLicense()
+	info, err := c.ValidateLicense()
 	if err != nil {
 		t.Errorf("expected nil error, got %v", err)
 	}
-	if tier != "" {
-		t.Errorf("expected empty tier, got %s", tier)
+	if info != nil {
+		t.Errorf("expected nil info, got %+v", info)
 	}
 }

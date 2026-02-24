@@ -85,6 +85,7 @@ func init() {
 	rootCmd.AddCommand(summarizeCmd)
 	rootCmd.AddCommand(discoverCmd)
 	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(activateCmd)
 	rootCmd.AddCommand(versionCmd)
 }
 

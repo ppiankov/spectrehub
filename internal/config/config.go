@@ -180,6 +180,68 @@ func (c *Config) ShouldFailOnThreshold(issueCount int) bool {
 	return issueCount > c.FailThreshold
 }
 
+// ConfigPath returns the path where config would be written.
+// Prefers XDG_CONFIG_HOME, then ~/.config/spectrehub, then home directory.
+func ConfigPath() string {
+	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
+		return filepath.Join(xdg, "spectrehub", "spectrehub.yaml")
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		dir := filepath.Join(home, ".config", "spectrehub")
+		if _, err := os.Stat(dir); err == nil {
+			return filepath.Join(dir, "spectrehub.yaml")
+		}
+		return filepath.Join(home, ".spectrehub.yaml")
+	}
+	return "spectrehub.yaml"
+}
+
+// WriteActivation atomically writes the license key and API URL to the config file.
+// It preserves existing config values or creates a new file with defaults.
+func WriteActivation(licenseKey, apiURL, path string) error {
+	if path == "" {
+		path = ConfigPath()
+	}
+
+	// Ensure parent directory exists.
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return fmt.Errorf("create config directory: %w", err)
+	}
+
+	// Read existing config or start from defaults.
+	v := viper.New()
+	v.SetConfigType("yaml")
+	v.SetConfigFile(path)
+
+	defaults := DefaultConfig()
+	v.SetDefault("storage_dir", defaults.StorageDir)
+	v.SetDefault("fail_threshold", defaults.FailThreshold)
+	v.SetDefault("format", defaults.Format)
+	v.SetDefault("last_runs", defaults.LastRuns)
+	v.SetDefault("verbose", defaults.Verbose)
+	v.SetDefault("debug", defaults.Debug)
+
+	// Ignore errors — file may not exist yet.
+	_ = v.ReadInConfig()
+
+	v.Set("license_key", licenseKey)
+	v.Set("api_url", apiURL)
+
+	// Write config. WriteConfigAs infers type from extension, so we write
+	// to the final .yaml path directly.
+	if err := v.WriteConfigAs(path); err != nil {
+		return fmt.Errorf("write config: %w", err)
+	}
+
+	// Set restrictive permissions.
+	if err := os.Chmod(path, 0600); err != nil {
+		return fmt.Errorf("set config permissions: %w", err)
+	}
+
+	return nil
+}
+
 // GenerateSampleConfig generates a sample configuration file content
 func GenerateSampleConfig() string {
 	return `# SpectreHub Configuration
