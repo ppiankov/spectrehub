@@ -8,14 +8,17 @@ import (
 	"github.com/ppiankov/spectrehub/internal/models"
 	"github.com/ppiankov/spectrehub/internal/reporter"
 	"github.com/ppiankov/spectrehub/internal/storage"
+	"github.com/ppiankov/spectrehub/internal/tui"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 var (
 	// Summarize command flags
-	summarizeLastN  int
+	summarizeLastN   int
 	summarizeCompare bool
-	summarizeFormat string
+	summarizeFormat  string
+	summarizeTUI     bool
 )
 
 // summarizeCmd represents the summarize command
@@ -34,7 +37,8 @@ This command displays:
 Example:
   spectrehub summarize
   spectrehub summarize --last 7
-  spectrehub summarize --compare --format json`,
+  spectrehub summarize --compare --format json
+  spectrehub summarize --tui`,
 	RunE: runSummarize,
 }
 
@@ -45,6 +49,8 @@ func init() {
 		"compare latest run with previous")
 	summarizeCmd.Flags().StringVarP(&summarizeFormat, "format", "f", "text",
 		"output format: text or json")
+	summarizeCmd.Flags().BoolVar(&summarizeTUI, "tui", false,
+		"launch interactive TUI (auto-enabled when TTY)")
 }
 
 func runSummarize(cmd *cobra.Command, args []string) error {
@@ -139,6 +145,15 @@ func runTrendReport(store *storage.LocalStorage, lastN int) error {
 	if trendSummary == nil {
 		fmt.Println("Unable to generate trend summary.")
 		return nil
+	}
+
+	// Launch TUI when explicitly requested or when stdout is a TTY with text format
+	useTUI := summarizeTUI
+	if !useTUI && summarizeFormat == "text" && term.IsTerminal(int(os.Stdout.Fd())) {
+		useTUI = true
+	}
+	if useTUI {
+		return tui.Run(reports[len(reports)-1], trendSummary)
 	}
 
 	// Output based on format
