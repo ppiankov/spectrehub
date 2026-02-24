@@ -141,6 +141,117 @@ func TestAggregatorAggregate(t *testing.T) {
 	}
 }
 
+func TestAggregatorAggregateKafka(t *testing.T) {
+	agg := New()
+	ts := time.Date(2026, 2, 15, 13, 0, 0, 0, time.UTC)
+
+	kafkaReport := &models.KafkaReport{
+		Summary: &models.KafkaSummary{
+			TotalTopics:  10,
+			TotalBrokers: 3,
+		},
+		UnusedTopics: []*models.UnusedTopic{
+			{Name: "t1", Partitions: 3, Risk: "high", Reason: "no consumers"},
+		},
+	}
+
+	reports := []models.ToolReport{
+		{
+			Tool:        string(models.ToolKafka),
+			Timestamp:   ts,
+			IsSupported: true,
+			RawData:     kafkaReport,
+		},
+	}
+
+	report, err := agg.Aggregate(reports)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if report.Summary.TotalIssues != 1 {
+		t.Fatalf("expected 1 issue, got %d", report.Summary.TotalIssues)
+	}
+}
+
+func TestAggregatorAggregatePg(t *testing.T) {
+	agg := New()
+	ts := time.Date(2026, 2, 15, 13, 0, 0, 0, time.UTC)
+
+	pgReport := &models.PgReport{
+		Scanned: models.PgScanContext{Tables: 10, Indexes: 20},
+		Findings: []models.PgFinding{
+			{Type: "UNUSED_TABLE", Severity: "medium", Schema: "public", Table: "old", Message: "unused"},
+		},
+	}
+
+	reports := []models.ToolReport{
+		{
+			Tool:        string(models.ToolPg),
+			Timestamp:   ts,
+			IsSupported: true,
+			RawData:     pgReport,
+		},
+	}
+
+	report, err := agg.Aggregate(reports)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if report.Summary.TotalIssues != 1 {
+		t.Fatalf("expected 1 issue, got %d", report.Summary.TotalIssues)
+	}
+	// Health score should account for PgSpectre resource count
+	if report.Summary.HealthScore == "unknown" {
+		t.Fatal("expected non-unknown health score for Pg report")
+	}
+}
+
+func TestAggregatorAggregateClickHouse(t *testing.T) {
+	agg := New()
+	ts := time.Date(2026, 2, 15, 13, 0, 0, 0, time.UTC)
+
+	clickReport := &models.ClickHouseReport{
+		Tables: []models.ClickTable{
+			{FullName: "db.t1", ZeroUsage: true, IsReplicated: false},
+			{FullName: "db.t2", ZeroUsage: false},
+			{FullName: "db.t3", ZeroUsage: false},
+		},
+	}
+
+	reports := []models.ToolReport{
+		{
+			Tool:        string(models.ToolClickHouse),
+			Timestamp:   ts,
+			IsSupported: true,
+			RawData:     clickReport,
+		},
+	}
+
+	report, err := agg.Aggregate(reports)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if report.Summary.TotalIssues != 1 {
+		t.Fatalf("expected 1 issue, got %d", report.Summary.TotalIssues)
+	}
+}
+
+func TestAggregatorAggregateEmptyReports(t *testing.T) {
+	agg := New()
+	reports := []models.ToolReport{}
+
+	report, err := agg.Aggregate(reports)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if report.Summary.TotalIssues != 0 {
+		t.Fatalf("expected 0 issues, got %d", report.Summary.TotalIssues)
+	}
+	if report.Summary.TotalTools != 0 {
+		t.Fatalf("expected 0 tools, got %d", report.Summary.TotalTools)
+	}
+}
+
 func TestAggregatorAddTrend(t *testing.T) {
 	aggregator := New()
 

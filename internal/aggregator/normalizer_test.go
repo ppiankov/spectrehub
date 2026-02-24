@@ -314,6 +314,333 @@ func TestNormalizeKafka(t *testing.T) {
 	}
 }
 
+func TestNormalizePg(t *testing.T) {
+	normalizer := NewNormalizer()
+	ts := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
+
+	pgReport := &models.PgReport{
+		Findings: []models.PgFinding{
+			{Type: "UNUSED_TABLE", Severity: "medium", Schema: "public", Table: "old_table", Message: "unused"},
+			{Type: "UNUSED_INDEX", Severity: "low", Schema: "public", Table: "users", Index: "idx_old", Message: "unused index"},
+			{Type: "MISSING_TABLE", Severity: "high", Schema: "app", Table: "missing_t", Message: "missing"},
+			{Type: "MISSING_COLUMN", Severity: "high", Schema: "app", Table: "users", Column: "email", Message: "missing column"},
+			{Type: "BLOATED_INDEX", Severity: "medium", Schema: "public", Table: "orders", Index: "idx_bloated", Message: "bloated"},
+			{Type: "MISSING_VACUUM", Severity: "medium", Table: "big_table", Message: "needs vacuum"},
+			{Type: "NO_PRIMARY_KEY", Severity: "high", Schema: "public", Table: "legacy", Message: "no pk"},
+			{Type: "DUPLICATE_INDEX", Severity: "low", Schema: "public", Table: "users", Index: "idx_dup", Message: "dup"},
+			{Type: "UNINDEXED_QUERY", Severity: "medium", Schema: "public", Table: "logs", Message: "slow"},
+			{Type: "UNREFERENCED_TABLE", Severity: "low", Schema: "public", Table: "orphan", Message: "orphan"},
+			{Type: "CODE_MATCH", Severity: "info", Schema: "public", Table: "t1", Message: "ok"},
+			{Type: "OK", Severity: "info", Schema: "public", Table: "t2", Message: "ok"},
+			{Type: "UNKNOWN_TYPE", Severity: "medium", Schema: "public", Table: "t3", Message: "unknown"},
+		},
+	}
+
+	report := models.ToolReport{
+		Tool:        string(models.ToolPg),
+		Timestamp:   ts,
+		IsSupported: true,
+		RawData:     pgReport,
+	}
+
+	issues, err := normalizer.Normalize(&report)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// CODE_MATCH and OK types should be skipped
+	if len(issues) != 11 {
+		t.Fatalf("expected 11 issues, got %d", len(issues))
+	}
+
+	// Check that all issues have correct tool name
+	for _, issue := range issues {
+		if issue.Tool != string(models.ToolPg) {
+			t.Fatalf("expected tool %s, got %s", models.ToolPg, issue.Tool)
+		}
+	}
+}
+
+func TestNormalizePgWrongDataType(t *testing.T) {
+	normalizer := NewNormalizer()
+	report := models.ToolReport{
+		Tool:        string(models.ToolPg),
+		IsSupported: true,
+		RawData:     "not-a-pg-report",
+	}
+
+	_, err := normalizer.Normalize(&report)
+	if err == nil {
+		t.Fatal("expected error for wrong data type")
+	}
+}
+
+func TestNormalizeMongo(t *testing.T) {
+	normalizer := NewNormalizer()
+	ts := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
+
+	mongoReport := &models.MongoReport{
+		Findings: []models.MongoFinding{
+			{Type: "UNUSED_COLLECTION", Severity: "medium", Database: "mydb", Collection: "old_col", Message: "unused"},
+			{Type: "UNUSED_INDEX", Severity: "low", Database: "mydb", Collection: "users", Index: "idx_old", Message: "unused index"},
+			{Type: "ORPHANED_INDEX", Severity: "low", Database: "mydb", Collection: "users", Index: "idx_orphan", Message: "orphaned"},
+			{Type: "MISSING_COLLECTION", Severity: "high", Database: "mydb", Collection: "missing_col", Message: "missing"},
+			{Type: "MISSING_INDEX", Severity: "medium", Database: "mydb", Collection: "orders", Message: "needs index"},
+			{Type: "DUPLICATE_INDEX", Severity: "low", Database: "mydb", Collection: "users", Index: "idx_dup", Message: "dup"},
+			{Type: "MISSING_TTL", Severity: "medium", Database: "mydb", Collection: "sessions", Message: "no ttl"},
+			{Type: "UNINDEXED_QUERY", Severity: "medium", Database: "mydb", Collection: "logs", Message: "slow"},
+			{Type: "SUGGEST_INDEX", Severity: "low", Database: "mydb", Collection: "events", Message: "suggestion"},
+			{Type: "OVERSIZED_COLLECTION", Severity: "high", Database: "mydb", Collection: "huge", Message: "oversized"},
+			{Type: "DYNAMIC_COLLECTION", Severity: "medium", Database: "mydb", Collection: "dynamic", Message: "dynamic"},
+			{Type: "ADMIN_IN_DATA_DB", Severity: "high", Database: "mydb", Message: "admin in data db"},
+			{Type: "DUPLICATE_USER", Severity: "medium", Database: "mydb", Message: "dup user"},
+			{Type: "OVERPRIVILEGED_USER", Severity: "high", Database: "mydb", Message: "overprivileged"},
+			{Type: "MULTIPLE_ADMIN_USERS", Severity: "medium", Database: "mydb", Message: "many admins"},
+			{Type: "OK", Severity: "info", Database: "mydb", Collection: "ok_col", Message: "ok"},
+			{Type: "UNKNOWN_TYPE", Severity: "medium", Database: "mydb", Message: "unknown"},
+		},
+	}
+
+	report := models.ToolReport{
+		Tool:        string(models.ToolMongo),
+		Timestamp:   ts,
+		IsSupported: true,
+		RawData:     mongoReport,
+	}
+
+	issues, err := normalizer.Normalize(&report)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// OK type should be skipped
+	if len(issues) != 16 {
+		t.Fatalf("expected 16 issues, got %d", len(issues))
+	}
+}
+
+func TestNormalizeMongoWrongDataType(t *testing.T) {
+	normalizer := NewNormalizer()
+	report := models.ToolReport{
+		Tool:        string(models.ToolMongo),
+		IsSupported: true,
+		RawData:     "not-a-mongo-report",
+	}
+
+	_, err := normalizer.Normalize(&report)
+	if err == nil {
+		t.Fatal("expected error for wrong data type")
+	}
+}
+
+func TestNormalizeMongoEmptyDatabase(t *testing.T) {
+	normalizer := NewNormalizer()
+	ts := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
+
+	mongoReport := &models.MongoReport{
+		Findings: []models.MongoFinding{
+			{Type: "MISSING_COLLECTION", Severity: "high", Collection: "missing_col", Message: "missing"},
+		},
+	}
+
+	report := models.ToolReport{
+		Tool:        string(models.ToolMongo),
+		Timestamp:   ts,
+		IsSupported: true,
+		RawData:     mongoReport,
+	}
+
+	issues, err := normalizer.Normalize(&report)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(issues) != 1 {
+		t.Fatalf("expected 1 issue, got %d", len(issues))
+	}
+	// Should use "unknown" as database prefix
+	if issues[0].Resource != "unknown.missing_col" {
+		t.Fatalf("expected resource 'unknown.missing_col', got %q", issues[0].Resource)
+	}
+}
+
+func TestNormalizeSpectreV1(t *testing.T) {
+	normalizer := NewNormalizer()
+	ts := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
+
+	v1Report := &models.SpectreV1Report{
+		Schema:    "spectre/v1",
+		Tool:      "s3spectre",
+		Version:   "0.2.1",
+		Timestamp: ts,
+		Target:    models.SpectreV1Target{Type: "s3"},
+		Findings: []models.SpectreV1Finding{
+			{ID: "UNUSED_BUCKET", Severity: "medium", Location: "s3://old-bucket", Message: "no recent access"},
+			{ID: "MISSING_BUCKET", Severity: "high", Location: "s3://missing-bucket", Message: "bucket not found"},
+			{ID: "STALE_PREFIX", Severity: "low", Location: "s3://data/old/", Message: "stale prefix"},
+			{ID: "VERSION_SPRAWL", Severity: "medium", Location: "s3://versioned-bucket", Message: "too many versions"},
+			{ID: "RISKY", Severity: "high", Location: "s3://risky", Message: "risky access"},
+			{ID: "DYNAMIC_COLLECTION", Severity: "info", Location: "db.dynamic", Message: "dynamic"},
+			{ID: "UNKNOWN_ID", Severity: "low", Location: "somewhere", Message: "unknown finding"},
+		},
+		Summary: models.SpectreV1Summary{Total: 7},
+	}
+
+	report := models.ToolReport{
+		Tool:        "s3spectre",
+		Timestamp:   ts,
+		IsSupported: true,
+		RawData:     v1Report,
+	}
+
+	issues, err := normalizer.Normalize(&report)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(issues) != 7 {
+		t.Fatalf("expected 7 issues, got %d", len(issues))
+	}
+
+	// Verify category mappings
+	issueMap := make(map[string]models.NormalizedIssue)
+	for _, issue := range issues {
+		issueMap[issue.Resource] = issue
+	}
+
+	expectedCategories := map[string]string{
+		"s3://old-bucket":       models.StatusUnused,
+		"s3://missing-bucket":   models.StatusMissing,
+		"s3://data/old/":        models.StatusStale,
+		"s3://versioned-bucket": models.StatusMisconfig,
+		"s3://risky":            models.StatusAccessDeny,
+		"db.dynamic":            models.StatusDrift,
+		"somewhere":             models.StatusError,
+	}
+
+	for resource, expectedCat := range expectedCategories {
+		issue, ok := issueMap[resource]
+		if !ok {
+			t.Fatalf("missing issue for resource %s", resource)
+		}
+		if issue.Category != expectedCat {
+			t.Fatalf("resource %s: expected category %s, got %s", resource, expectedCat, issue.Category)
+		}
+	}
+}
+
+func TestMapSpectreSeverity(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"high", models.SeverityHigh},
+		{"medium", models.SeverityMedium},
+		{"low", models.SeverityLow},
+		{"info", models.SeverityLow},
+		{"unknown", models.SeverityMedium},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.input, func(t *testing.T) {
+			if got := mapSpectreSeverity(tt.input); got != tt.expected {
+				t.Fatalf("expected %s, got %s", tt.expected, got)
+			}
+		})
+	}
+}
+
+func TestBuildPgResource(t *testing.T) {
+	tests := []struct {
+		name     string
+		finding  models.PgFinding
+		expected string
+	}{
+		{"schema and table", models.PgFinding{Schema: "public", Table: "users"}, "public.users"},
+		{"table only", models.PgFinding{Table: "users"}, "users"},
+		{"with column", models.PgFinding{Schema: "public", Table: "users", Column: "email"}, "public.users.email"},
+		{"with index", models.PgFinding{Schema: "public", Table: "users", Index: "idx_email"}, "public.users.index:idx_email"},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			if got := buildPgResource(tt.finding); got != tt.expected {
+				t.Fatalf("expected %q, got %q", tt.expected, got)
+			}
+		})
+	}
+}
+
+func TestBuildMongoResource(t *testing.T) {
+	tests := []struct {
+		name     string
+		finding  models.MongoFinding
+		expected string
+	}{
+		{"db and collection", models.MongoFinding{Database: "mydb", Collection: "users"}, "mydb.users"},
+		{"db only", models.MongoFinding{Database: "mydb"}, "mydb"},
+		{"empty db", models.MongoFinding{Collection: "users"}, "unknown.users"},
+		{"with index", models.MongoFinding{Database: "mydb", Collection: "users", Index: "idx_email"}, "mydb.users.idx_email"},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			if got := buildMongoResource(tt.finding); got != tt.expected {
+				t.Fatalf("expected %q, got %q", tt.expected, got)
+			}
+		})
+	}
+}
+
+func TestMapVaultStatus(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"missing", models.StatusMissing},
+		{"access_denied", models.StatusAccessDeny},
+		{"invalid", models.StatusInvalid},
+		{"error", models.StatusError},
+		{"stale", models.StatusStale},
+		{"unknown", models.StatusError},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.input, func(t *testing.T) {
+			if got := mapVaultStatus(tt.input); got != tt.expected {
+				t.Fatalf("expected %s, got %s", tt.expected, got)
+			}
+		})
+	}
+}
+
+func TestMapS3Status(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"MISSING_BUCKET", models.StatusMissing},
+		{"MISSING_PREFIX", models.StatusMissing},
+		{"UNUSED_BUCKET", models.StatusUnused},
+		{"STALE_PREFIX", models.StatusStale},
+		{"VERSION_SPRAWL", models.StatusMisconfig},
+		{"LIFECYCLE_MISCONFIG", models.StatusMisconfig},
+		{"UNKNOWN", models.StatusError},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.input, func(t *testing.T) {
+			if got := mapS3Status(tt.input); got != tt.expected {
+				t.Fatalf("expected %s, got %s", tt.expected, got)
+			}
+		})
+	}
+}
+
 func TestNormalizeClickHouse(t *testing.T) {
 	normalizer := NewNormalizer()
 	firstSeen := time.Date(2026, 2, 10, 8, 0, 0, 0, time.UTC)

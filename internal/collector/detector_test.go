@@ -221,3 +221,127 @@ func TestGetToolName(t *testing.T) {
 		})
 	}
 }
+
+func TestMapToolName(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected models.ToolType
+		wantErr  bool
+	}{
+		{"vault", "vaultspectre", models.ToolVault, false},
+		{"s3", "s3spectre", models.ToolS3, false},
+		{"kafka", "kafkaspectre", models.ToolKafka, false},
+		{"clickhouse", "clickspectre", models.ToolClickHouse, false},
+		{"pg", "pgspectre", models.ToolPg, false},
+		{"mongo", "mongospectre", models.ToolMongo, false},
+		{"unknown", "foospectre", models.ToolUnknown, true},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := mapToolName(tt.input)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tt.expected {
+				t.Fatalf("expected %s, got %s", tt.expected, got)
+			}
+		})
+	}
+}
+
+func TestDetectToolTypePgMetadata(t *testing.T) {
+	data := mustJSON(t, map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"tool": "pgspectre",
+		},
+		"findings": []interface{}{},
+		"summary":  map[string]interface{}{},
+	})
+
+	got, err := DetectToolType(data)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != models.ToolPg {
+		t.Fatalf("expected %s, got %s", models.ToolPg, got)
+	}
+}
+
+func TestDetectToolTypeSpectreV1MissingTool(t *testing.T) {
+	data := mustJSON(t, map[string]interface{}{
+		"schema": "spectre/v1",
+	})
+
+	_, err := DetectToolType(data)
+	if err == nil {
+		t.Fatal("expected error for spectre/v1 missing tool field")
+	}
+}
+
+func TestDetectToolTypePgByScannedField(t *testing.T) {
+	data := mustJSON(t, map[string]interface{}{
+		"metadata": map[string]interface{}{},
+		"findings": []interface{}{},
+		"summary":  map[string]interface{}{},
+		"scanned": map[string]interface{}{
+			"tables":  10,
+			"indexes": 5,
+		},
+	})
+
+	got, err := DetectToolType(data)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != models.ToolPg {
+		t.Fatalf("expected %s, got %s", models.ToolPg, got)
+	}
+}
+
+func TestDetectToolTypeMongoByMetadata(t *testing.T) {
+	data := mustJSON(t, map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"mongodbVersion": "6.0",
+		},
+		"findings": []interface{}{},
+		"summary":  map[string]interface{}{},
+	})
+
+	got, err := DetectToolType(data)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != models.ToolMongo {
+		t.Fatalf("expected %s, got %s", models.ToolMongo, got)
+	}
+}
+
+func TestDetectToolTypeMongoByFindings(t *testing.T) {
+	data := mustJSON(t, map[string]interface{}{
+		"metadata": map[string]interface{}{},
+		"findings": []interface{}{
+			map[string]interface{}{
+				"database":   "mydb",
+				"collection": "users",
+			},
+		},
+		"summary": map[string]interface{}{},
+	})
+
+	got, err := DetectToolType(data)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != models.ToolMongo {
+		t.Fatalf("expected %s, got %s", models.ToolMongo, got)
+	}
+}

@@ -534,12 +534,406 @@ func TestValidateTimestamp(t *testing.T) {
 		{"valid", now.Add(-24 * time.Hour), false},
 		{"future", now.Add(2 * time.Hour), true},
 		{"too old", now.AddDate(-2, 0, 0), true},
+		{"just now", now, false},
+		{"borderline future within 1h", now.Add(30 * time.Minute), false},
+		{"exactly 1 year ago", now.AddDate(-1, 0, 0).Add(1 * time.Hour), false},
 	}
 
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidateTimestamp(tt.ts)
+			if tt.wantErr && err == nil {
+				t.Fatalf("expected error, got nil")
+			}
+			if !tt.wantErr && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestValidationErrorError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      *ValidationError
+		contains []string
+	}{
+		{
+			name: "single error",
+			err:  &ValidationError{Tool: "VaultSpectre", Errors: []string{"missing field"}},
+			contains: []string{
+				"Invalid VaultSpectre report",
+				"missing field",
+			},
+		},
+		{
+			name: "multiple errors",
+			err: &ValidationError{
+				Tool:   "S3Spectre",
+				Errors: []string{"error one", "error two"},
+			},
+			contains: []string{
+				"Invalid S3Spectre report",
+				"error one",
+				"error two",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			msg := tt.err.Error()
+			for _, c := range tt.contains {
+				if !strings.Contains(msg, c) {
+					t.Fatalf("expected error message to contain %q, got %q", c, msg)
+				}
+			}
+		})
+	}
+}
+
+func TestIsSpectreV1(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     []byte
+		expected bool
+	}{
+		{"valid spectre/v1", []byte(`{"schema":"spectre/v1","tool":"s3spectre"}`), true},
+		{"different schema", []byte(`{"schema":"spectre/v2"}`), false},
+		{"no schema", []byte(`{"tool":"s3spectre"}`), false},
+		{"invalid json", []byte(`{`), false},
+		{"empty object", []byte(`{}`), false},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isSpectreV1(tt.data); got != tt.expected {
+				t.Fatalf("expected %v, got %v", tt.expected, got)
+			}
+		})
+	}
+}
+
+func TestValidateReportSpectreV1Dispatch(t *testing.T) {
+	validator := New()
+	now := time.Date(2026, 2, 15, 0, 0, 0, 0, time.UTC)
+
+	// Valid spectre/v1 report should be dispatched to spectre/v1 validator
+	v1Report := models.SpectreV1Report{
+		Schema:    "spectre/v1",
+		Tool:      "s3spectre",
+		Version:   "0.2.1",
+		Timestamp: now,
+		Target:    models.SpectreV1Target{Type: "s3"},
+		Findings: []models.SpectreV1Finding{
+			{ID: "UNUSED_BUCKET", Severity: "medium", Location: "s3://test", Message: "unused"},
+		},
+		Summary: models.SpectreV1Summary{Total: 1, Medium: 1},
+	}
+
+	data := mustJSON(t, v1Report)
+
+	// Even if we pass a different tool type, spectre/v1 envelope takes precedence
+	err := validator.ValidateReport(models.ToolVault, data)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestValidateSpectreV1Report(t *testing.T) {
+	validator := New()
+	now := time.Date(2026, 2, 15, 0, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name           string
+		report         models.SpectreV1Report
+		raw            []byte
+		wantErrContain string
+	}{
+		{
+			name: "valid report",
+			report: models.SpectreV1Report{
+				Schema:    "spectre/v1",
+				Tool:      "s3spectre",
+				Version:   "0.2.1",
+				Timestamp: now,
+				Target:    models.SpectreV1Target{Type: "s3"},
+				Findings: []models.SpectreV1Finding{
+					{ID: "UNUSED_BUCKET", Severity: "medium", Location: "s3://test", Message: "unused"},
+				},
+				Summary: models.SpectreV1Summary{Total: 1, Medium: 1},
+			},
+		},
+		{
+			name:           "invalid json",
+			raw:            []byte("{"),
+			wantErrContain: "Failed to parse JSON",
+		},
+		{
+			name: "missing tool",
+			report: models.SpectreV1Report{
+				Schema:    "spectre/v1",
+				Version:   "0.2.1",
+				Timestamp: now,
+				Target:    models.SpectreV1Target{Type: "s3"},
+				Findings:  []models.SpectreV1Finding{},
+				Summary:   models.SpectreV1Summary{Total: 0},
+			},
+			wantErrContain: "Missing required field: 'tool'",
+		},
+		{
+			name: "missing version",
+			report: models.SpectreV1Report{
+				Schema:    "spectre/v1",
+				Tool:      "s3spectre",
+				Timestamp: now,
+				Target:    models.SpectreV1Target{Type: "s3"},
+				Findings:  []models.SpectreV1Finding{},
+				Summary:   models.SpectreV1Summary{Total: 0},
+			},
+			wantErrContain: "Missing required field: 'version'",
+		},
+		{
+			name: "missing timestamp",
+			report: models.SpectreV1Report{
+				Schema:   "spectre/v1",
+				Tool:     "s3spectre",
+				Version:  "0.2.1",
+				Target:   models.SpectreV1Target{Type: "s3"},
+				Findings: []models.SpectreV1Finding{},
+				Summary:  models.SpectreV1Summary{Total: 0},
+			},
+			wantErrContain: "Missing or invalid field: 'timestamp'",
+		},
+		{
+			name: "missing target type",
+			report: models.SpectreV1Report{
+				Schema:    "spectre/v1",
+				Tool:      "s3spectre",
+				Version:   "0.2.1",
+				Timestamp: now,
+				Findings:  []models.SpectreV1Finding{},
+				Summary:   models.SpectreV1Summary{Total: 0},
+			},
+			wantErrContain: "Missing required field: 'target.type'",
+		},
+		{
+			name: "wrong target type for tool",
+			report: models.SpectreV1Report{
+				Schema:    "spectre/v1",
+				Tool:      "s3spectre",
+				Version:   "0.2.1",
+				Timestamp: now,
+				Target:    models.SpectreV1Target{Type: "vault"},
+				Findings:  []models.SpectreV1Finding{},
+				Summary:   models.SpectreV1Summary{Total: 0},
+			},
+			wantErrContain: "target.type",
+		},
+		{
+			name: "nil findings",
+			report: models.SpectreV1Report{
+				Schema:    "spectre/v1",
+				Tool:      "s3spectre",
+				Version:   "0.2.1",
+				Timestamp: now,
+				Target:    models.SpectreV1Target{Type: "s3"},
+				Findings:  nil,
+				Summary:   models.SpectreV1Summary{Total: 0},
+			},
+			wantErrContain: "findings",
+		},
+		{
+			name: "finding missing id",
+			report: models.SpectreV1Report{
+				Schema:    "spectre/v1",
+				Tool:      "s3spectre",
+				Version:   "0.2.1",
+				Timestamp: now,
+				Target:    models.SpectreV1Target{Type: "s3"},
+				Findings: []models.SpectreV1Finding{
+					{Severity: "medium", Location: "s3://test", Message: "unused"},
+				},
+				Summary: models.SpectreV1Summary{Total: 1, Medium: 1},
+			},
+			wantErrContain: "missing required field 'id'",
+		},
+		{
+			name: "finding invalid severity",
+			report: models.SpectreV1Report{
+				Schema:    "spectre/v1",
+				Tool:      "s3spectre",
+				Version:   "0.2.1",
+				Timestamp: now,
+				Target:    models.SpectreV1Target{Type: "s3"},
+				Findings: []models.SpectreV1Finding{
+					{ID: "TEST", Severity: "critical", Location: "s3://test", Message: "test"},
+				},
+				Summary: models.SpectreV1Summary{Total: 1},
+			},
+			wantErrContain: "invalid severity",
+		},
+		{
+			name: "finding missing location",
+			report: models.SpectreV1Report{
+				Schema:    "spectre/v1",
+				Tool:      "s3spectre",
+				Version:   "0.2.1",
+				Timestamp: now,
+				Target:    models.SpectreV1Target{Type: "s3"},
+				Findings: []models.SpectreV1Finding{
+					{ID: "TEST", Severity: "medium", Message: "test"},
+				},
+				Summary: models.SpectreV1Summary{Total: 1, Medium: 1},
+			},
+			wantErrContain: "missing required field 'location'",
+		},
+		{
+			name: "finding missing message",
+			report: models.SpectreV1Report{
+				Schema:    "spectre/v1",
+				Tool:      "s3spectre",
+				Version:   "0.2.1",
+				Timestamp: now,
+				Target:    models.SpectreV1Target{Type: "s3"},
+				Findings: []models.SpectreV1Finding{
+					{ID: "TEST", Severity: "medium", Location: "s3://test"},
+				},
+				Summary: models.SpectreV1Summary{Total: 1, Medium: 1},
+			},
+			wantErrContain: "missing required field 'message'",
+		},
+		{
+			name: "summary total mismatch",
+			report: models.SpectreV1Report{
+				Schema:    "spectre/v1",
+				Tool:      "s3spectre",
+				Version:   "0.2.1",
+				Timestamp: now,
+				Target:    models.SpectreV1Target{Type: "s3"},
+				Findings: []models.SpectreV1Finding{
+					{ID: "TEST", Severity: "medium", Location: "s3://test", Message: "test"},
+				},
+				Summary: models.SpectreV1Summary{Total: 5, Medium: 1},
+			},
+			wantErrContain: "summary.total=5 does not match findings count=1",
+		},
+		{
+			name: "unknown tool target type accepted",
+			report: models.SpectreV1Report{
+				Schema:    "spectre/v1",
+				Tool:      "customtool",
+				Version:   "0.1.0",
+				Timestamp: now,
+				Target:    models.SpectreV1Target{Type: "custom"},
+				Findings:  []models.SpectreV1Finding{},
+				Summary:   models.SpectreV1Summary{Total: 0},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			data := tt.raw
+			if data == nil {
+				data = mustJSON(t, tt.report)
+			}
+
+			err := validator.ValidateSpectreV1Report(data)
+			if tt.wantErrContain == "" {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("expected error, got nil")
+			}
+			var vErr *ValidationError
+			if !errors.As(err, &vErr) {
+				t.Fatalf("expected ValidationError, got %T", err)
+			}
+			if !containsError(vErr.Errors, tt.wantErrContain) {
+				t.Fatalf("expected error to contain %q, got %v", tt.wantErrContain, vErr.Errors)
+			}
+		})
+	}
+}
+
+func TestValidateReportAllToolTypes(t *testing.T) {
+	validator := New()
+	now := time.Date(2026, 2, 15, 0, 0, 0, 0, time.UTC)
+
+	// Test that each tool type routes correctly (even with invalid data to hit error paths)
+	tests := []struct {
+		name     string
+		toolType models.ToolType
+		data     []byte
+		wantErr  bool
+	}{
+		{
+			name:     "vault invalid json",
+			toolType: models.ToolVault,
+			data:     []byte("{"),
+			wantErr:  true,
+		},
+		{
+			name:     "s3 invalid json",
+			toolType: models.ToolS3,
+			data:     []byte("{"),
+			wantErr:  true,
+		},
+		{
+			name:     "kafka invalid json",
+			toolType: models.ToolKafka,
+			data:     []byte("{"),
+			wantErr:  true,
+		},
+		{
+			name:     "clickhouse invalid json",
+			toolType: models.ToolClickHouse,
+			data:     []byte("{"),
+			wantErr:  true,
+		},
+		{
+			name:     "valid vault with all statuses",
+			toolType: models.ToolVault,
+			data: mustJSON(t, models.VaultReport{
+				Tool:      "vaultspectre",
+				Timestamp: now,
+				Summary:   models.VaultSummary{TotalReferences: 3},
+				Secrets: map[string]*models.SecretInfo{
+					"secret/ok":      {Status: "ok"},
+					"secret/missing": {Status: "missing"},
+					"secret/dynamic": {Status: "dynamic"},
+					"secret/error":   {Status: "error"},
+					"secret/invalid": {Status: "invalid"},
+					"secret/access":  {Status: "access_denied"},
+				},
+			}),
+		},
+		{
+			name:     "kafka with negative brokers",
+			toolType: models.ToolKafka,
+			data: mustJSON(t, models.KafkaReport{
+				Summary: &models.KafkaSummary{
+					TotalTopics:  1,
+					TotalBrokers: -1,
+				},
+				ClusterMetadata: &models.ClusterMetadata{},
+			}),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			err := validator.ValidateReport(tt.toolType, tt.data)
 			if tt.wantErr && err == nil {
 				t.Fatalf("expected error, got nil")
 			}

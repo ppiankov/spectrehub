@@ -127,3 +127,154 @@ func TestValidateLicenseNilClient(t *testing.T) {
 		t.Errorf("expected nil info, got %+v", info)
 	}
 }
+
+func TestNewWithKey(t *testing.T) {
+	c := New("https://api.spectrehub.dev", "sh_test_key")
+	if c == nil {
+		t.Fatal("expected non-nil client")
+	}
+	if c.baseURL != "https://api.spectrehub.dev" {
+		t.Errorf("expected baseURL=https://api.spectrehub.dev, got %s", c.baseURL)
+	}
+	if c.licenseKey != "sh_test_key" {
+		t.Errorf("expected licenseKey=sh_test_key, got %s", c.licenseKey)
+	}
+}
+
+func TestSubmitReportServerError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "internal error"})
+	}))
+	defer ts.Close()
+
+	c := New(ts.URL, "sh_test_key")
+	err := c.SubmitReport(ReportPayload{TotalTools: 1})
+	if err == nil {
+		t.Error("expected error for server error")
+	}
+}
+
+func TestSubmitReportServerErrorNoBody(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer ts.Close()
+
+	c := New(ts.URL, "sh_test_key")
+	err := c.SubmitReport(ReportPayload{TotalTools: 1})
+	if err == nil {
+		t.Error("expected error for server error")
+	}
+}
+
+func TestValidateLicenseServerError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer ts.Close()
+
+	c := New(ts.URL, "sh_test_key")
+	_, err := c.ValidateLicense()
+	if err == nil {
+		t.Error("expected error for server error")
+	}
+}
+
+func TestValidateLicenseNotActive(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"valid": false,
+			"tier":  "expired",
+		})
+	}))
+	defer ts.Close()
+
+	c := New(ts.URL, "sh_test_key")
+	_, err := c.ValidateLicense()
+	if err == nil {
+		t.Error("expected error for inactive license")
+	}
+}
+
+func TestListReposSuccess(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/repos" {
+			t.Errorf("expected /v1/repos, got %s", r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "Bearer sh_test_key" {
+			t.Errorf("unexpected auth header: %s", r.Header.Get("Authorization"))
+		}
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(ReposInfo{
+			Repos:    []string{"org/repo1", "org/repo2"},
+			Count:    2,
+			MaxRepos: 10,
+		})
+	}))
+	defer ts.Close()
+
+	c := New(ts.URL, "sh_test_key")
+	info, err := c.ListRepos()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if info.Count != 2 {
+		t.Errorf("expected count=2, got %d", info.Count)
+	}
+	if info.MaxRepos != 10 {
+		t.Errorf("expected max_repos=10, got %d", info.MaxRepos)
+	}
+	if len(info.Repos) != 2 {
+		t.Errorf("expected 2 repos, got %d", len(info.Repos))
+	}
+}
+
+func TestListReposNilClient(t *testing.T) {
+	var c *Client
+	info, err := c.ListRepos()
+	if err != nil {
+		t.Errorf("expected nil error, got %v", err)
+	}
+	if info != nil {
+		t.Errorf("expected nil info, got %+v", info)
+	}
+}
+
+func TestListReposServerError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer ts.Close()
+
+	c := New(ts.URL, "sh_test_key")
+	_, err := c.ListRepos()
+	if err == nil {
+		t.Error("expected error for server error")
+	}
+}
+
+func TestSubmitReportConnectionError(t *testing.T) {
+	c := New("http://localhost:1", "sh_test_key")
+	err := c.SubmitReport(ReportPayload{TotalTools: 1})
+	if err == nil {
+		t.Error("expected error for connection failure")
+	}
+}
+
+func TestValidateLicenseConnectionError(t *testing.T) {
+	c := New("http://localhost:1", "sh_test_key")
+	_, err := c.ValidateLicense()
+	if err == nil {
+		t.Error("expected error for connection failure")
+	}
+}
+
+func TestListReposConnectionError(t *testing.T) {
+	c := New("http://localhost:1", "sh_test_key")
+	_, err := c.ListRepos()
+	if err == nil {
+		t.Error("expected error for connection failure")
+	}
+}

@@ -202,3 +202,192 @@ func TestLoadFromFileNotFound(t *testing.T) {
 		t.Error("expected nil policy for missing file")
 	}
 }
+
+func TestLoadFromFileInvalidYAML(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "bad.yaml")
+	if err := os.WriteFile(path, []byte("{{{{not yaml"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := LoadFromFile(path)
+	if err == nil {
+		t.Error("expected error for invalid YAML")
+	}
+}
+
+func TestLoadFromFileUnreadable(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "noperm.yaml")
+	if err := os.WriteFile(path, []byte("version: 1"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(path, 0000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(path, 0644) })
+
+	_, err := LoadFromFile(path)
+	if err == nil {
+		t.Error("expected error for unreadable file")
+	}
+}
+
+func TestMaxHighFail(t *testing.T) {
+	report := baseReport()
+	report.Summary.IssuesBySeverity["high"] = 5
+	p := &Policy{Rules: Rules{MaxHigh: intPtr(2)}}
+	result := p.Evaluate(report)
+	if result.Pass {
+		t.Error("expected fail: 5 high exceeds limit 2")
+	}
+	if result.Violations[0].Rule != "max_high" {
+		t.Errorf("expected max_high, got %s", result.Violations[0].Rule)
+	}
+}
+
+func TestForbidCategoriesZeroCountNotReported(t *testing.T) {
+	report := baseReport()
+	report.Summary.IssuesByCategory["drift"] = 0
+	p := &Policy{Rules: Rules{ForbidCategories: []string{"drift"}}}
+	result := p.Evaluate(report)
+	if !result.Pass {
+		t.Errorf("expected pass (drift count=0), got violations: %v", result.Violations)
+	}
+}
+
+func TestRequireToolsMultiple(t *testing.T) {
+	p := &Policy{Rules: Rules{RequireTools: []string{"vaultspectre", "kafkaspectre"}}}
+	result := p.Evaluate(baseReport())
+	if result.Pass {
+		t.Error("expected fail: kafkaspectre not in report")
+	}
+	foundKafka := false
+	for _, v := range result.Violations {
+		if v.Rule == "require_tools" && v.Message == `required tool "kafkaspectre" not found in report` {
+			foundKafka = true
+		}
+	}
+	if !foundKafka {
+		t.Error("expected violation for kafkaspectre not found")
+	}
+}
+
+func TestFindPolicyFile(t *testing.T) {
+	// Create a temp directory with a policy file
+	dir := t.TempDir()
+	policyPath := filepath.Join(dir, ".spectrehub-policy.yaml")
+	if err := os.WriteFile(policyPath, []byte("version: 1\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Save and restore cwd
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	path := FindPolicyFile()
+	if path == "" {
+		t.Fatal("expected to find policy file")
+	}
+	if filepath.Base(path) != ".spectrehub-policy.yaml" {
+		t.Errorf("unexpected path: %s", path)
+	}
+}
+
+func TestFindPolicyFileYML(t *testing.T) {
+	dir := t.TempDir()
+	policyPath := filepath.Join(dir, ".spectrehub-policy.yml")
+	if err := os.WriteFile(policyPath, []byte("version: 1\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	path := FindPolicyFile()
+	if path == "" {
+		t.Fatal("expected to find policy file (.yml)")
+	}
+}
+
+func TestFindPolicyFileNone(t *testing.T) {
+	dir := t.TempDir()
+
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	path := FindPolicyFile()
+	if path != "" {
+		t.Errorf("expected empty path, got %q", path)
+	}
+}
+
+func TestLoadFromFileAllRules(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".spectrehub-policy.yaml")
+	content := `version: "1"
+rules:
+  max_issues: 10
+  max_critical: 0
+  max_high: 5
+  min_score: 80.0
+  forbid_categories:
+    - missing
+    - drift
+  require_tools:
+    - vaultspectre
+    - s3spectre
+`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	p, err := LoadFromFile(path)
+	if err != nil {
+		t.Fatalf("LoadFromFile: %v", err)
+	}
+	if p.Rules.MaxHigh == nil || *p.Rules.MaxHigh != 5 {
+		t.Errorf("expected max_high=5, got %v", p.Rules.MaxHigh)
+	}
+	if p.Rules.MaxCritical == nil || *p.Rules.MaxCritical != 0 {
+		t.Errorf("expected max_critical=0, got %v", p.Rules.MaxCritical)
+	}
+	if len(p.Rules.ForbidCategories) != 2 {
+		t.Errorf("expected 2 forbid_categories, got %d", len(p.Rules.ForbidCategories))
+	}
+	if len(p.Rules.RequireTools) != 2 {
+		t.Errorf("expected 2 require_tools, got %d", len(p.Rules.RequireTools))
+	}
+}
+
+func TestEvaluateNoRules(t *testing.T) {
+	p := &Policy{Version: "1"}
+	result := p.Evaluate(baseReport())
+	if !result.Pass {
+		t.Error("expected pass with no rules")
+	}
+	if len(result.Violations) != 0 {
+		t.Errorf("expected no violations, got %d", len(result.Violations))
+	}
+}
