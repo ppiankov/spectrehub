@@ -123,8 +123,16 @@ func (a *Aggregator) calculateHealthScore(report *models.AggregatedReport) {
 		}
 	}
 
-	// Calculate health score
-	healthLevel, scorePercent := models.CalculateHealthScore(report.Summary.TotalIssues, totalResources)
+	// Count distinct affected resources (resources with at least one issue).
+	affected := make(map[string]bool)
+	for _, issue := range report.Issues {
+		if issue.Resource != "" {
+			affected[issue.Resource] = true
+		}
+	}
+
+	// Calculate health score: clean resources / total resources.
+	healthLevel, scorePercent := models.CalculateHealthScore(len(affected), totalResources)
 	report.Summary.HealthScore = healthLevel
 	report.Summary.ScorePercent = scorePercent
 }

@@ -182,14 +182,16 @@ type ToolTrend struct {
 	ChangePercent  float64 `json:"change_percent"` // Positive = more issues
 }
 
-// CalculateHealthScore determines overall health based on issue counts
-func CalculateHealthScore(totalIssues, totalResources int) (string, float64) {
+// CalculateHealthScore determines overall health from affected vs total resources.
+// affectedResources is the count of unique resources with at least one issue.
+// score = (totalResources - affectedResources) / totalResources * 100, clamped 0-100.
+func CalculateHealthScore(affectedResources, totalResources int) (string, float64) {
 	if totalResources == 0 {
 		return "unknown", 0.0
 	}
 
-	// Calculate score as percentage of healthy resources
-	score := float64(totalResources-totalIssues) / float64(totalResources) * 100.0
+	// Score = percentage of clean (unaffected) resources.
+	score := float64(totalResources-affectedResources) / float64(totalResources) * 100.0
 
 	// Clamp to 0-100
 	if score < 0 {
