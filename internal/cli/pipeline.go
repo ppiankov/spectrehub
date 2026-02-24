@@ -9,6 +9,7 @@ import (
 	"github.com/ppiankov/spectrehub/internal/aggregator"
 	"github.com/ppiankov/spectrehub/internal/apiclient"
 	"github.com/ppiankov/spectrehub/internal/models"
+	"github.com/ppiankov/spectrehub/internal/policy"
 	"github.com/ppiankov/spectrehub/internal/reporter"
 	"github.com/ppiankov/spectrehub/internal/storage"
 )
@@ -97,7 +98,32 @@ func RunPipeline(toolReports []models.ToolReport, pcfg PipelineConfig) error {
 		return err
 	}
 
-	// Step 7: Check threshold
+	// Step 7: Policy enforcement (if .spectrehub-policy.yaml exists)
+	if policyPath := policy.FindPolicyFile(); policyPath != "" {
+		logVerbose("Found policy file: %s", policyPath)
+
+		pol, err := policy.LoadFromFile(policyPath)
+		if err != nil {
+			logError("Failed to load policy: %v", err)
+			return err
+		}
+
+		if pol != nil {
+			result := pol.Evaluate(aggregatedReport)
+			if !result.Pass {
+				for _, v := range result.Violations {
+					logError("Policy violation [%s]: %s", v.Rule, v.Message)
+				}
+				return &ThresholdExceededError{
+					IssueCount: len(result.Violations),
+					Threshold:  0,
+				}
+			}
+			logVerbose("Policy check passed")
+		}
+	}
+
+	// Step 8: Check threshold
 	if pcfg.Threshold > 0 && aggregatedReport.Summary.TotalIssues > pcfg.Threshold {
 		logError("Issue count (%d) exceeds threshold (%d)", aggregatedReport.Summary.TotalIssues, pcfg.Threshold)
 		return &ThresholdExceededError{
