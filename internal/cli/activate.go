@@ -122,5 +122,5 @@ func writeActivateJSON(w *os.File, status, errMsg, plan string, maxRepos int, co
 	}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
-	enc.Encode(result)
+	_ = enc.Encode(result)
 }

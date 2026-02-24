@@ -60,11 +60,11 @@ func (c *Client) SubmitReport(payload ReportPayload) error {
 	if err != nil {
 		return fmt.Errorf("submit report: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusCreated {
 		var errResp map[string]string
-		json.NewDecoder(resp.Body).Decode(&errResp)
+		_ = json.NewDecoder(resp.Body).Decode(&errResp)
 		msg := errResp["error"]
 		if msg == "" {
 			msg = resp.Status
@@ -101,7 +101,7 @@ func (c *Client) ValidateLicense() (*LicenseInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("validate license: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusUnauthorized {
 		return nil, fmt.Errorf("invalid or expired license key")

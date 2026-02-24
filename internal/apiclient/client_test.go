@@ -43,7 +43,7 @@ func TestSubmitReportSuccess(t *testing.T) {
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]interface{}{"id": 1, "message": "report stored"})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"id": 1, "message": "report stored"})
 	}))
 	defer ts.Close()
 
@@ -64,7 +64,7 @@ func TestSubmitReportSuccess(t *testing.T) {
 func TestSubmitReportUnauthorized(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid license"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid license"})
 	}))
 	defer ts.Close()
 
@@ -81,7 +81,7 @@ func TestValidateLicenseSuccess(t *testing.T) {
 			t.Errorf("expected /v1/license/validate, got %s", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"valid":      true,
 			"tier":       "team",
 			"max_repos":  10,
