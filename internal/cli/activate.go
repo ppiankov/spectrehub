@@ -99,6 +99,7 @@ func runActivate(cmd *cobra.Command, args []string) error {
 	} else {
 		fmt.Printf("License activated. Plan: %s (up to %d repos).\n", info.Tier, info.MaxRepos)
 		fmt.Printf("Config written to %s\n", configPath)
+		fmt.Println("\nNext: spectrehub run --store --repo org/name")
 	}
 
 	return nil

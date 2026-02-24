@@ -14,6 +14,7 @@ var (
 	collectStore      bool
 	collectStorageDir string
 	collectThreshold  int
+	collectRepo       string
 )
 
 // collectCmd represents the collect command
@@ -51,6 +52,8 @@ func init() {
 		"storage directory (default from config)")
 	collectCmd.Flags().IntVar(&collectThreshold, "fail-threshold", -1,
 		"exit with code 1 if issues exceed this threshold (default from config)")
+	collectCmd.Flags().StringVar(&collectRepo, "repo", "",
+		"repository identifier for API upload (e.g. org/repo)")
 }
 
 func runCollect(cmd *cobra.Command, args []string) error {
@@ -90,6 +93,11 @@ func runCollect(cmd *cobra.Command, args []string) error {
 	logVerbose("Collected %d tool reports", len(toolReports))
 
 	// Steps 2-7: Aggregate, trend, recommend, store, output, threshold
+	repo := collectRepo
+	if repo == "" {
+		repo = cfg.Repo
+	}
+
 	return RunPipeline(toolReports, PipelineConfig{
 		Format:     collectFormat,
 		Output:     collectOutput,
@@ -98,5 +106,6 @@ func runCollect(cmd *cobra.Command, args []string) error {
 		Threshold:  collectThreshold,
 		LicenseKey: cfg.LicenseKey,
 		APIURL:     cfg.APIURL,
+		Repo:       repo,
 	})
 }

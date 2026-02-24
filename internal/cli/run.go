@@ -21,6 +21,7 @@ var (
 	runThreshold  int
 	runTimeout    time.Duration
 	runDryRun     bool
+	runRepo       string
 )
 
 var runCmd = &cobra.Command{
@@ -53,6 +54,8 @@ func init() {
 		"per-tool execution timeout")
 	runCmd.Flags().BoolVar(&runDryRun, "dry-run", false,
 		"show discovery plan without executing tools")
+	runCmd.Flags().StringVar(&runRepo, "repo", "",
+		"repository identifier for API upload (e.g. org/repo)")
 }
 
 func runRun(cmd *cobra.Command, args []string) error {
@@ -126,6 +129,11 @@ func runRun(cmd *cobra.Command, args []string) error {
 	}
 
 	// Step 4: Report through shared pipeline
+	repo := runRepo
+	if repo == "" {
+		repo = cfg.Repo
+	}
+
 	return RunPipeline(toolReports, PipelineConfig{
 		Format:     runFormat,
 		Output:     runOutput,
@@ -134,5 +142,6 @@ func runRun(cmd *cobra.Command, args []string) error {
 		Threshold:  runThreshold,
 		LicenseKey: cfg.LicenseKey,
 		APIURL:     cfg.APIURL,
+		Repo:       repo,
 	})
 }

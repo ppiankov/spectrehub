@@ -121,3 +121,41 @@ func (c *Client) ValidateLicense() (*LicenseInfo, error) {
 
 	return &info, nil
 }
+
+// ReposInfo holds the response from GET /v1/repos.
+type ReposInfo struct {
+	Repos    []string `json:"repos"`
+	Count    int      `json:"count"`
+	MaxRepos int      `json:"max_repos"`
+}
+
+// ListRepos returns the tracked repos for the license.
+func (c *Client) ListRepos() (*ReposInfo, error) {
+	if c == nil {
+		return nil, nil
+	}
+
+	req, err := http.NewRequest("GET", c.baseURL+"/v1/repos", nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+c.licenseKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("list repos: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API error (HTTP %d)", resp.StatusCode)
+	}
+
+	var info ReposInfo
+	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	return &info, nil
+}

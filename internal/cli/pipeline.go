@@ -236,6 +236,6 @@ func submitToAPI(report *models.AggregatedReport, pcfg PipelineConfig) {
 	if err := client.SubmitReport(payload); err != nil {
 		logError("Failed to sync report to API: %v", err)
 	} else {
-		logVerbose("Report synced to SpectreHub API")
+		fmt.Fprintf(os.Stderr, "Report synced to SpectreHub API (%s)\n", pcfg.Repo)
 	}
 }

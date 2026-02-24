@@ -88,6 +88,7 @@ func init() {
 	rootCmd.AddCommand(activateCmd)
 	rootCmd.AddCommand(diffCmd)
 	rootCmd.AddCommand(exportCmd)
+	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(versionCmd)
 }
 

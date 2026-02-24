@@ -28,6 +28,9 @@ type Config struct {
 	// Debug mode
 	Debug bool `mapstructure:"debug"`
 
+	// Repository identifier for API upload (from config, --repo flag, or SPECTREHUB_REPO)
+	Repo string `mapstructure:"repo"`
+
 	// License key for API access (from config or SPECTREHUB_LICENSE_KEY)
 	LicenseKey string `mapstructure:"license_key"`
 
@@ -69,6 +72,7 @@ func LoadFromFile(configPath string) (*Config, error) {
 	v.SetDefault("last_runs", defaults.LastRuns)
 	v.SetDefault("verbose", defaults.Verbose)
 	v.SetDefault("debug", defaults.Debug)
+	v.SetDefault("repo", "")
 	v.SetDefault("license_key", "")
 	v.SetDefault("api_url", "https://api.spectrehub.dev")
 
