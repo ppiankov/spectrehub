@@ -1,0 +1,77 @@
+name: SpectreHub Audit
+description: Run SpectreHub infrastructure audit and upload results
+branding:
+  icon: shield
+  color: purple
+
+inputs:
+  version:
+    description: SpectreHub version to install (e.g. 0.2.0)
+    required: false
+    default: latest
+  license-key:
+    description: SpectreHub license key (sh_live_...)
+    required: false
+  repo:
+    description: Repository identifier for API upload (e.g. org/repo)
+    required: false
+    default: ${{ github.repository }}
+  store:
+    description: Persist results locally for trend analysis
+    required: false
+    default: "true"
+  format:
+    description: "Output format: text, json, or both"
+    required: false
+    default: text
+  fail-threshold:
+    description: Fail if issues exceed this count (0 = disabled)
+    required: false
+    default: "0"
+
+runs:
+  using: composite
+  steps:
+    - name: Install SpectreHub
+      shell: bash
+      run: |
+        if [ "${{ inputs.version }}" = "latest" ]; then
+          VERSION=$(curl -s https://api.github.com/repos/ppiankov/spectrehub/releases/latest | grep tag_name | cut -d '"' -f 4 | sed 's/^v//')
+        else
+          VERSION="${{ inputs.version }}"
+        fi
+
+        OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        ARCH=$(uname -m)
+        case "$ARCH" in
+          x86_64) ARCH="amd64" ;;
+          aarch64|arm64) ARCH="arm64" ;;
+        esac
+
+        URL="https://github.com/ppiankov/spectrehub/releases/download/v${VERSION}/spectrehub-${OS}-${ARCH}"
+        echo "Installing SpectreHub v${VERSION} (${OS}/${ARCH})"
+        curl -sL "$URL" -o /usr/local/bin/spectrehub
+        chmod +x /usr/local/bin/spectrehub
+        spectrehub version
+
+    - name: Run SpectreHub audit
+      shell: bash
+      env:
+        SPECTREHUB_LICENSE_KEY: ${{ inputs.license-key }}
+        SPECTREHUB_REPO: ${{ inputs.repo }}
+      run: |
+        ARGS="--format ${{ inputs.format }}"
+
+        if [ "${{ inputs.store }}" = "true" ]; then
+          ARGS="$ARGS --store"
+        fi
+
+        if [ "${{ inputs.fail-threshold }}" != "0" ]; then
+          ARGS="$ARGS --fail-threshold ${{ inputs.fail-threshold }}"
+        fi
+
+        if [ -n "${{ inputs.repo }}" ]; then
+          ARGS="$ARGS --repo ${{ inputs.repo }}"
+        fi
+
+        spectrehub run $ARGS

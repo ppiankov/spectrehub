@@ -31,7 +31,7 @@ var rootCmd = &cobra.Command{
 	Use:   "spectrehub",
 	Short: "SpectreHub - Unified infrastructure audit aggregator",
 	Long: `SpectreHub aggregates and analyzes security audit reports from the Spectre
-tool family (VaultSpectre, S3Spectre, KafkaSpectre, ClickSpectre).
+tool family (VaultSpectre, S3Spectre, KafkaSpectre, ClickSpectre, PgSpectre, MongoSpectre).
 
 It provides:
 - Unified view across multiple infrastructure domains
@@ -39,10 +39,16 @@ It provides:
 - Actionable recommendations prioritized by severity
 - CI/CD integration with exit codes
 
-Example usage:
-  spectrehub collect ./reports
-  spectrehub summarize --last 7
-  spectrehub collect ./reports --fail-threshold 50`,
+Quick start:
+  spectrehub activate <license-key>
+  spectrehub discover
+  spectrehub run --store --repo org/name
+  spectrehub status
+
+Other commands:
+  spectrehub diff --last 2
+  spectrehub export --format sarif
+  spectrehub collect ./reports --repo org/name`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Load configuration
 		var err error

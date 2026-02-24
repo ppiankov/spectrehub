@@ -64,6 +64,8 @@ func printDiscoveryText(plan *discovery.DiscoveryPlan) {
 
 		if td.Available {
 			fmt.Printf("                  path: %s\n", td.BinaryPath)
+		} else if info, ok := discovery.Registry[td.Tool]; ok && info.InstallHint != "" {
+			fmt.Printf("                  install: %s\n", info.InstallHint)
 		}
 
 		// Show env var status
@@ -79,7 +81,7 @@ func printDiscoveryText(plan *discovery.DiscoveryPlan) {
 			if len(setVars) > 0 {
 				fmt.Printf("                  env:  %s\n", strings.Join(setVars, ", "))
 			}
-			if len(unsetVars) > 0 && verbose {
+			if len(unsetVars) > 0 {
 				fmt.Printf("                  missing: %s\n", strings.Join(unsetVars, ", "))
 			}
 		}

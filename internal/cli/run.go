@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/ppiankov/spectrehub/internal/collector"
@@ -67,7 +68,22 @@ func runRun(cmd *cobra.Command, args []string) error {
 	logVerbose("found %d tools, %d runnable", plan.TotalFound, plan.TotalRunnable)
 
 	if plan.TotalRunnable == 0 {
-		fmt.Fprintln(os.Stderr, "No runnable tools found. Run 'spectrehub discover' for details.")
+		fmt.Fprintln(os.Stderr, "No runnable tools found.")
+		// Show which tools were found but missing targets
+		for _, td := range plan.Tools {
+			if td.Available && !td.Runnable {
+				var missing []string
+				for _, ev := range td.EnvVars {
+					if !ev.Set {
+						missing = append(missing, ev.Name)
+					}
+				}
+				if len(missing) > 0 {
+					fmt.Fprintf(os.Stderr, "  %s: missing env %s\n", td.Binary, strings.Join(missing, ", "))
+				}
+			}
+		}
+		fmt.Fprintln(os.Stderr, "\nRun 'spectrehub discover' for full details.")
 		return nil
 	}
 

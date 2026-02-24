@@ -89,7 +89,10 @@ func RunPipeline(toolReports []models.ToolReport, pcfg PipelineConfig) error {
 
 	// Step 5: Submit to API if license key is configured
 	if pcfg.LicenseKey != "" {
-		submitToAPI(aggregatedReport, pcfg)
+		if err := submitToAPI(aggregatedReport, pcfg); err != nil {
+			logError("API upload failed: %v", err)
+			return err
+		}
 	}
 
 	// Step 6: Generate output
@@ -211,7 +214,9 @@ func getStoragePath(storageDir string) (string, error) {
 }
 
 // submitToAPI sends the aggregated report to the SpectreHub API.
-func submitToAPI(report *models.AggregatedReport, pcfg PipelineConfig) {
+// Returns an error if the upload fails — callers should treat this as fatal
+// so CI pipelines don't silently pass with untracked results.
+func submitToAPI(report *models.AggregatedReport, pcfg PipelineConfig) error {
 	apiURL := pcfg.APIURL
 	if apiURL == "" {
 		apiURL = "https://api.spectrehub.dev"
@@ -219,7 +224,7 @@ func submitToAPI(report *models.AggregatedReport, pcfg PipelineConfig) {
 
 	client := apiclient.New(apiURL, pcfg.LicenseKey)
 	if client == nil {
-		return
+		return nil
 	}
 
 	rawJSON, _ := json.Marshal(report)
@@ -234,8 +239,9 @@ func submitToAPI(report *models.AggregatedReport, pcfg PipelineConfig) {
 	}
 
 	if err := client.SubmitReport(payload); err != nil {
-		logError("Failed to sync report to API: %v", err)
-	} else {
-		fmt.Fprintf(os.Stderr, "Report synced to SpectreHub API (%s)\n", pcfg.Repo)
+		return fmt.Errorf("failed to sync report to API: %w", err)
 	}
+
+	fmt.Fprintf(os.Stderr, "Report synced to SpectreHub API (%s)\n", pcfg.Repo)
+	return nil
 }

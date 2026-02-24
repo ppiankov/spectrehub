@@ -9,6 +9,7 @@ type ToolExecInfo struct {
 	JSONFlag    string   // flag to produce JSON output
 	EnvVars     []string // env vars that signal the tool has a target
 	ConfigFiles []string // config files that signal the tool is configured
+	InstallHint string   // install command shown when tool is not found
 }
 
 // Registry is the single source of truth for how to invoke each spectre tool.
@@ -19,6 +20,7 @@ var Registry = map[models.ToolType]ToolExecInfo{
 		JSONFlag:    "--format json",
 		EnvVars:     []string{"VAULT_ADDR", "VAULT_TOKEN"},
 		ConfigFiles: nil,
+		InstallHint: "brew install ppiankov/tap/vaultspectre",
 	},
 	models.ToolS3: {
 		Binary:      "s3spectre",
@@ -26,6 +28,7 @@ var Registry = map[models.ToolType]ToolExecInfo{
 		JSONFlag:    "--format json",
 		EnvVars:     []string{"AWS_PROFILE", "AWS_REGION", "AWS_ACCESS_KEY_ID"},
 		ConfigFiles: nil,
+		InstallHint: "brew install ppiankov/tap/s3spectre",
 	},
 	models.ToolKafka: {
 		Binary:      "kafkaspectre",
@@ -33,6 +36,7 @@ var Registry = map[models.ToolType]ToolExecInfo{
 		JSONFlag:    "--format json",
 		EnvVars:     nil,
 		ConfigFiles: []string{"~/.kafkaspectre.yaml", ".kafkaspectre.yaml"},
+		InstallHint: "brew install ppiankov/tap/kafkaspectre",
 	},
 	models.ToolClickHouse: {
 		Binary:      "clickspectre",
@@ -40,6 +44,7 @@ var Registry = map[models.ToolType]ToolExecInfo{
 		JSONFlag:    "--format json",
 		EnvVars:     nil,
 		ConfigFiles: []string{".clickspectre.yaml", "~/.clickspectre.yaml"},
+		InstallHint: "brew install ppiankov/tap/clickspectre",
 	},
 	models.ToolPg: {
 		Binary:      "pgspectre",
@@ -47,6 +52,7 @@ var Registry = map[models.ToolType]ToolExecInfo{
 		JSONFlag:    "--format json",
 		EnvVars:     []string{"PGSPECTRE_DB_URL", "DATABASE_URL"},
 		ConfigFiles: nil,
+		InstallHint: "brew install ppiankov/tap/pgspectre",
 	},
 	models.ToolMongo: {
 		Binary:      "mongospectre",
@@ -54,5 +60,6 @@ var Registry = map[models.ToolType]ToolExecInfo{
 		JSONFlag:    "--format json",
 		EnvVars:     []string{"MONGODB_URI"},
 		ConfigFiles: []string{".mongospectre.yml"},
+		InstallHint: "brew install ppiankov/tap/mongospectre",
 	},
 }
