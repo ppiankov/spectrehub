@@ -97,6 +97,7 @@ func init() {
 	rootCmd.AddCommand(exportCmd)
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(doctorCmd)
+	rootCmd.AddCommand(explainScoreCmd)
 	rootCmd.AddCommand(versionCmd)
 }
 
