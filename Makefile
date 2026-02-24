@@ -4,6 +4,8 @@
 BINARY_NAME=spectrehub
 BUILD_DIR=bin
 MAIN_PATH=./cmd/spectrehub
+VERSION ?= dev
+LDFLAGS=-s -w -X main.version=$(VERSION)
 
 # Go parameters
 GOCMD=go
@@ -15,9 +17,9 @@ GOINSTALL=$(GOCMD) install
 
 # Build the project
 build:
-	@echo "Building $(BINARY_NAME)..."
+	@echo "Building $(BINARY_NAME) $(VERSION)..."
 	@mkdir -p $(BUILD_DIR)
-	$(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME) $(MAIN_PATH)
+	$(GOBUILD) -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME) $(MAIN_PATH)
 	@echo "Build complete: $(BUILD_DIR)/$(BINARY_NAME)"
 
 # Build for multiple platforms (for releases)

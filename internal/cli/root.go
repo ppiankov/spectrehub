@@ -102,13 +102,20 @@ func init() {
 	rootCmd.AddCommand(versionCmd)
 }
 
+// buildVersion is set by SetVersion() from main.go at startup.
+var buildVersion = "dev"
+
+// SetVersion sets the build version from the linker-injected value.
+func SetVersion(v string) {
+	buildVersion = v
+}
+
 // versionCmd shows version information
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show version information",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("SpectreHub v0.2.0")
-		fmt.Println("The unified infrastructure audit aggregator")
+		fmt.Printf("spectrehub %s\n", buildVersion)
 	},
 }
 
