@@ -12,6 +12,7 @@ const (
 	ToolClickHouse ToolType = "clickspectre"
 	ToolPg         ToolType = "pgspectre"
 	ToolMongo      ToolType = "mongospectre"
+	ToolAWS        ToolType = "awsspectre"
 	ToolUnknown    ToolType = "unknown"
 )
 
@@ -59,6 +60,12 @@ var SupportedTools = map[ToolType]ToolInfo{
 		Name:          "mongospectre",
 		MinVersion:    "0.1.0",
 		HasValidation: false,
+		HasNormalizer: true,
+	},
+	ToolAWS: {
+		Name:          "awsspectre",
+		MinVersion:    "0.1.0",
+		HasValidation: true,
 		HasNormalizer: true,
 	},
 }

@@ -62,4 +62,12 @@ var Registry = map[models.ToolType]ToolExecInfo{
 		ConfigFiles: []string{".mongospectre.yml"},
 		InstallHint: "brew install ppiankov/tap/mongospectre",
 	},
+	models.ToolAWS: {
+		Binary:      "awsspectre",
+		Subcommand:  "scan",
+		JSONFlag:    "--format json",
+		EnvVars:     []string{"AWS_PROFILE", "AWS_REGION", "AWS_ACCESS_KEY_ID"},
+		ConfigFiles: []string{".awsspectre.yaml"},
+		InstallHint: "brew install ppiankov/tap/awsspectre",
+	},
 }
