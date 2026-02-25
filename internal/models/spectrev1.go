@@ -16,7 +16,7 @@ type SpectreV1Report struct {
 
 // SpectreV1Target describes what was scanned.
 type SpectreV1Target struct {
-	Type    string `json:"type"` // s3, postgres, kafka, clickhouse, vault, mongodb
+	Type    string `json:"type"` // s3, postgres, kafka, clickhouse, vault, mongodb, aws-account, gcp-project, gcs
 	URIHash string `json:"uri_hash,omitempty"`
 }
 
@@ -46,6 +46,8 @@ var ValidSpectreV1Severities = map[string]bool{
 }
 
 // SpectreV1TargetTypes maps tool names to their expected target.type values.
+// Tools not listed here (e.g., iamspectre which emits aws-account or gcp-project
+// depending on the cloud) are accepted with any target type.
 var SpectreV1TargetTypes = map[string]string{
 	"s3spectre":    "s3",
 	"pgspectre":    "postgres",
@@ -53,4 +55,6 @@ var SpectreV1TargetTypes = map[string]string{
 	"clickspectre": "clickhouse",
 	"vaultspectre": "vault",
 	"mongospectre": "mongodb",
+	"awsspectre":   "aws-account",
+	"gcsspectre":   "gcs",
 }
