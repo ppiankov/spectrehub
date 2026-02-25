@@ -1,5 +1,7 @@
 # SpectreHub
 
+[![spectrehub.dev](https://img.shields.io/badge/docs-spectrehub.dev-blue)](https://spectrehub.dev)
+
 **The unified infrastructure audit aggregator for the Spectre tool family**
 
 SpectreHub is the central brain of the Spectre ecosystem. It discovers installed spectre tools, executes them against configured infrastructure, and aggregates JSON reports from VaultSpectre, S3Spectre, KafkaSpectre, ClickSpectre, PgSpectre, and MongoSpectre into a coherent, actionable view of your infrastructure drift.
