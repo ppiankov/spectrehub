@@ -1,10 +1,11 @@
 # SpectreHub
 
+[![ANCC](https://img.shields.io/badge/ANCC-compliant-brightgreen)](https://ancc.dev)
 [![spectrehub.dev](https://img.shields.io/badge/docs-spectrehub.dev-blue)](https://spectrehub.dev)
 
 **The unified infrastructure audit aggregator for the Spectre tool family**
 
-SpectreHub is the central brain of the Spectre ecosystem. It discovers installed spectre tools, executes them against configured infrastructure, and aggregates JSON reports from VaultSpectre, S3Spectre, KafkaSpectre, ClickSpectre, PgSpectre, and MongoSpectre into a coherent, actionable view of your infrastructure drift.
+SpectreHub is the central brain of the Spectre ecosystem. It discovers installed spectre tools, executes them against configured infrastructure, and aggregates JSON reports from VaultSpectre, S3Spectre, KafkaSpectre, ClickSpectre, PgSpectre, MongoSpectre, AWSSpectre, and IAMSpectre into a coherent, actionable view of your infrastructure drift.
 
 ## Overview
 
@@ -56,6 +57,8 @@ SpectreHub accepts JSON reports from:
 - **ClickSpectre** - ClickHouse table usage analysis
 - **PgSpectre** - PostgreSQL security audits
 - **MongoSpectre** - MongoDB configuration audits
+- **AWSSpectre** - AWS resource waste detection (EC2, EBS, RDS, ALB, NAT GW)
+- **IAMSpectre** - Cross-cloud IAM audits (AWS and GCP)
 
 ### Input Format Requirements
 
@@ -528,37 +531,35 @@ spectrehub/
 └── README.md
 ```
 
+## Project Status
+
+**Status: Beta** · **v0.2.0** · Pre-1.0
+
+| Milestone | Status |
+|-----------|--------|
+| Core aggregation engine (collect, normalize, score) | Complete |
+| 8 tool integrations (vault, s3, kafka, click, pg, mongo, aws, iam) | Complete |
+| Discovery engine + `run` command (discover, execute, aggregate) | Complete |
+| Interactive TUI for `summarize` (bubbletea) | Complete |
+| `diff` command with `--fail-new` for CI gating | Complete |
+| `doctor` command for environment validation | Complete |
+| GitHub Action (free + paid tiers) | Complete |
+| SpectreHub API with license management | Complete |
+| Homebrew + Docker distribution | Complete |
+| CI pipeline (test/lint/build/release) | Complete |
+| Test coverage >85% | Complete |
+| API stability guarantees | Partial |
+| v1.0 release | Planned |
+
+Pre-1.0: CLI flags and config schemas may change between minor versions. JSON output structure (`spectre/v1`) is stable.
+
 ## Roadmap
-
-### v0.1 (Current - MVP)
-
-✅ Core aggregation engine
-✅ Support for Vault, S3, Kafka, ClickHouse
-✅ Local storage and trend analysis
-✅ CLI with text/JSON output
-✅ Config file support
-✅ Exit code contract for CI/CD
-
-### v0.2 (Current)
-
-✅ `discover` command - Detect available tools and targets
-✅ `run` command - Discover + execute + aggregate in one step
-✅ PgSpectre and MongoSpectre support
-
-### v0.3 (Planned)
-
-- [ ] GitHub Action for automated audits
-- [ ] `diff` command - Compare any two runs explicitly
-- [ ] `query` command - Filter stored reports
-
-### v0.3+ (User-Driven)
 
 Features to be prioritized based on user feedback:
 - Remote storage backends (S3, PostgreSQL)
 - Notification webhooks (Slack, Teams, Email)
 - Policy as code (custom thresholds per tool)
 - Cross-tool correlation and dependency graphs
-- Cost estimation calculators
 
 ## License
 
@@ -571,4 +572,4 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ---
 
-**Built as part of the Spectre family of infrastructure tools.**
+**Built as part of the [Attention First](https://attentionfirst.dev) family of infrastructure tools.**
