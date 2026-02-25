@@ -315,12 +315,16 @@ Show summary and trends from stored runs.
 spectrehub summarize
 spectrehub summarize --last 7
 spectrehub summarize --compare --format json
+spectrehub summarize --tui
 ```
+
+When running in a terminal, `summarize` automatically launches an interactive TUI (bubbletea) with filterable findings table, severity breakdown, and detail views. Use `--format json` or pipe output to bypass the TUI.
 
 **Flags:**
 - `--last` / `-n` - Number of runs to analyze (default from config)
 - `--compare` / `-c` - Compare latest run with previous
 - `--format` / `-f` - Output format (text or json)
+- `--tui` - Force interactive TUI (auto-enabled when stdout is a TTY)
 
 ### `spectrehub version`
 
