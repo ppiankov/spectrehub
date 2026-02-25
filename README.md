@@ -5,7 +5,7 @@
 
 **The unified infrastructure audit aggregator for the Spectre tool family**
 
-SpectreHub is the central brain of the Spectre ecosystem. It discovers installed spectre tools, executes them against configured infrastructure, and aggregates JSON reports from VaultSpectre, S3Spectre, KafkaSpectre, ClickSpectre, PgSpectre, MongoSpectre, AWSSpectre, and IAMSpectre into a coherent, actionable view of your infrastructure drift.
+SpectreHub is the central brain of the Spectre ecosystem. It discovers installed spectre tools, executes them against configured infrastructure, and aggregates JSON reports from VaultSpectre, S3Spectre, KafkaSpectre, ClickSpectre, PgSpectre, MongoSpectre, AWSSpectre, IAMSpectre, and GCSSpectre into a coherent, actionable view of your infrastructure drift.
 
 ## Overview
 
@@ -59,6 +59,7 @@ SpectreHub accepts JSON reports from:
 - **MongoSpectre** - MongoDB configuration audits
 - **AWSSpectre** - AWS resource waste detection (EC2, EBS, RDS, ALB, NAT GW)
 - **IAMSpectre** - Cross-cloud IAM audits (AWS and GCP)
+- **GCSSpectre** - GCP Cloud Storage audits (drift, lifecycle, public access)
 
 ### Input Format Requirements
 
@@ -538,7 +539,7 @@ spectrehub/
 | Milestone | Status |
 |-----------|--------|
 | Core aggregation engine (collect, normalize, score) | Complete |
-| 8 tool integrations (vault, s3, kafka, click, pg, mongo, aws, iam) | Complete |
+| 9 tool integrations (vault, s3, kafka, click, pg, mongo, aws, iam, gcs) | Complete |
 | Discovery engine + `run` command (discover, execute, aggregate) | Complete |
 | Interactive TUI for `summarize` (bubbletea) | Complete |
 | `diff` command with `--fail-new` for CI gating | Complete |

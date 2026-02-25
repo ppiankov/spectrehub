@@ -78,4 +78,12 @@ var Registry = map[models.ToolType]ToolExecInfo{
 		ConfigFiles: []string{".iamspectre.yaml"},
 		InstallHint: "brew install ppiankov/tap/iamspectre",
 	},
+	models.ToolGCS: {
+		Binary:      "gcsspectre",
+		Subcommand:  "discover",
+		JSONFlag:    "--format json",
+		EnvVars:     []string{"GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_CLOUD_PROJECT", "CLOUDSDK_CORE_PROJECT"},
+		ConfigFiles: []string{".gcsspectre.yaml"},
+		InstallHint: "brew install ppiankov/tap/gcsspectre",
+	},
 }
