@@ -13,6 +13,7 @@ const (
 	ToolPg         ToolType = "pgspectre"
 	ToolMongo      ToolType = "mongospectre"
 	ToolAWS        ToolType = "awsspectre"
+	ToolIAM        ToolType = "iamspectre"
 	ToolUnknown    ToolType = "unknown"
 )
 
@@ -64,6 +65,12 @@ var SupportedTools = map[ToolType]ToolInfo{
 	},
 	ToolAWS: {
 		Name:          "awsspectre",
+		MinVersion:    "0.1.0",
+		HasValidation: true,
+		HasNormalizer: true,
+	},
+	ToolIAM: {
+		Name:          "iamspectre",
 		MinVersion:    "0.1.0",
 		HasValidation: true,
 		HasNormalizer: true,

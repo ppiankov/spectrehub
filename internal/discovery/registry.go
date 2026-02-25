@@ -70,4 +70,12 @@ var Registry = map[models.ToolType]ToolExecInfo{
 		ConfigFiles: []string{".awsspectre.yaml"},
 		InstallHint: "brew install ppiankov/tap/awsspectre",
 	},
+	models.ToolIAM: {
+		Binary:      "iamspectre",
+		Subcommand:  "aws",
+		JSONFlag:    "--format json",
+		EnvVars:     []string{"AWS_PROFILE", "AWS_REGION", "AWS_ACCESS_KEY_ID", "GOOGLE_APPLICATION_CREDENTIALS"},
+		ConfigFiles: []string{".iamspectre.yaml"},
+		InstallHint: "brew install ppiankov/tap/iamspectre",
+	},
 }

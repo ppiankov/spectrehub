@@ -79,6 +79,8 @@ func mapToolName(name string) (models.ToolType, error) {
 		return models.ToolMongo, nil
 	case "awsspectre":
 		return models.ToolAWS, nil
+	case "iamspectre":
+		return models.ToolIAM, nil
 	default:
 		return models.ToolUnknown, fmt.Errorf("unknown tool: %s", name)
 	}
