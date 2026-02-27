@@ -5,7 +5,7 @@
 
 **The unified infrastructure audit aggregator for the Spectre tool family**
 
-SpectreHub is the central brain of the Spectre ecosystem. It discovers installed spectre tools, executes them against configured infrastructure, and aggregates JSON reports from VaultSpectre, S3Spectre, KafkaSpectre, ClickSpectre, PgSpectre, MongoSpectre, AWSSpectre, IAMSpectre, and GCSSpectre into a coherent, actionable view of your infrastructure drift.
+SpectreHub is the central brain of the Spectre ecosystem. It discovers installed spectre tools, executes them against configured infrastructure, and aggregates JSON reports from VaultSpectre, S3Spectre, KafkaSpectre, ClickSpectre, PgSpectre, MongoSpectre, AWSSpectre, IAMSpectre, GCSSpectre, and GCPSpectre into a coherent, actionable view of your infrastructure drift.
 
 ## Overview
 
@@ -60,6 +60,7 @@ SpectreHub accepts JSON reports from:
 - **AWSSpectre** - AWS resource waste detection (EC2, EBS, RDS, ALB, NAT GW)
 - **IAMSpectre** - Cross-cloud IAM audits (AWS and GCP)
 - **GCSSpectre** - GCP Cloud Storage audits (drift, lifecycle, public access)
+- **GCPSpectre** - GCP compute resource waste detection (instances, disks, IPs, Cloud SQL)
 
 ### Input Format Requirements
 

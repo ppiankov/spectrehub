@@ -16,7 +16,7 @@ type SpectreV1Report struct {
 
 // SpectreV1Target describes what was scanned.
 type SpectreV1Target struct {
-	Type    string `json:"type"` // s3, postgres, kafka, clickhouse, vault, mongodb, aws-account, gcp-project, gcs
+	Type    string `json:"type"` // s3, postgres, kafka, clickhouse, vault, mongodb, aws-account, gcp-project, gcs, gcp-projects
 	URIHash string `json:"uri_hash,omitempty"`
 }
 
@@ -57,4 +57,5 @@ var SpectreV1TargetTypes = map[string]string{
 	"mongospectre": "mongodb",
 	"awsspectre":   "aws-account",
 	"gcsspectre":   "gcs",
+	"gcpspectre":   "gcp-projects",
 }

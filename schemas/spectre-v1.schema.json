@@ -13,7 +13,7 @@
     "tool": {
       "type": "string",
       "description": "Tool name that produced this report (e.g., vaultspectre, s3spectre).",
-      "examples": ["vaultspectre", "s3spectre", "kafkaspectre", "clickspectre", "pgspectre", "mongospectre", "awsspectre", "iamspectre", "gcsspectre"]
+      "examples": ["vaultspectre", "s3spectre", "kafkaspectre", "clickspectre", "pgspectre", "mongospectre", "awsspectre", "iamspectre", "gcsspectre", "gcpspectre"]
     },
     "version": {
       "type": "string",
@@ -47,7 +47,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["s3", "postgres", "kafka", "clickhouse", "vault", "mongodb", "aws-account", "gcp-project", "gcs"],
+          "enum": ["s3", "postgres", "kafka", "clickhouse", "vault", "mongodb", "aws-account", "gcp-project", "gcs", "gcp-projects"],
           "description": "Infrastructure type that was audited."
         },
         "uri_hash": {

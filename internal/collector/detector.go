@@ -83,6 +83,8 @@ func mapToolName(name string) (models.ToolType, error) {
 		return models.ToolIAM, nil
 	case "gcsspectre":
 		return models.ToolGCS, nil
+	case "gcpspectre":
+		return models.ToolGCPCompute, nil
 	default:
 		return models.ToolUnknown, fmt.Errorf("unknown tool: %s", name)
 	}
