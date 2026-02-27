@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ppiankov/spectrehub/internal/api"
 	"github.com/ppiankov/spectrehub/internal/collector"
 	"github.com/ppiankov/spectrehub/internal/discovery"
 	"github.com/ppiankov/spectrehub/internal/runner"
@@ -148,6 +149,11 @@ func runRun(cmd *cobra.Command, args []string) error {
 	repo := runRepo
 	if repo == "" {
 		repo = cfg.Repo
+	}
+	if repo != "" {
+		if err := api.ValidateRepo(repo); err != nil {
+			return &ValidationError{Message: fmt.Sprintf("invalid repo value: %v", err)}
+		}
 	}
 
 	return RunPipeline(toolReports, PipelineConfig{

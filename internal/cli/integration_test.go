@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,6 +17,23 @@ import (
 	"github.com/ppiankov/spectrehub/internal/models"
 	"github.com/ppiankov/spectrehub/internal/storage"
 )
+
+const validTestLicenseKey = "sh_test_0123456789abcdef0123456789abcdef"
+
+func newIPv4Server(t *testing.T, handler http.Handler) *httptest.Server {
+	t.Helper()
+
+	ln, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Skipf("skipping test: cannot bind local listener in this environment: %v", err)
+		return nil
+	}
+
+	server := httptest.NewUnstartedServer(handler)
+	server.Listener = ln
+	server.Start()
+	return server
+}
 
 // setupTestStorage creates a temp dir with N stored reports and returns the path.
 func setupTestStorage(t *testing.T, reports ...*models.AggregatedReport) string {
@@ -1915,7 +1933,7 @@ func TestCheckStorageWritableIntegration(t *testing.T) {
 
 func TestCheckRepoWithLicenseNoRepo(t *testing.T) {
 	withTestConfig(t, &config.Config{
-		LicenseKey: "some_key",
+		LicenseKey: validTestLicenseKey,
 		Repo:       "",
 	})
 
@@ -2053,7 +2071,7 @@ func TestPersistentPreRunEBadConfig(t *testing.T) {
 
 func TestCheckLicenseWithKey(t *testing.T) {
 	withTestConfig(t, &config.Config{
-		LicenseKey: "test_key",
+		LicenseKey: validTestLicenseKey,
 		APIURL:     "http://127.0.0.1:1", // unreachable
 	})
 
@@ -2380,7 +2398,7 @@ func TestOutputDiffStdoutText(t *testing.T) {
 // --- runStatus with mock API (license success path) ---
 
 func TestRunStatusWithValidLicense(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := newIPv4Server(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v1/license/validate":
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{
@@ -2403,7 +2421,7 @@ func TestRunStatusWithValidLicense(t *testing.T) {
 	withTestConfig(t, &config.Config{
 		StorageDir: ".spectre",
 		Format:     "text",
-		LicenseKey: "test_key",
+		LicenseKey: validTestLicenseKey,
 		APIURL:     ts.URL,
 	})
 
@@ -2430,7 +2448,7 @@ func TestRunStatusWithValidLicense(t *testing.T) {
 }
 
 func TestRunStatusWithValidLicenseJSON(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := newIPv4Server(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v1/license/validate":
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{
@@ -2453,7 +2471,7 @@ func TestRunStatusWithValidLicenseJSON(t *testing.T) {
 	withTestConfig(t, &config.Config{
 		StorageDir: ".spectre",
 		Format:     "json",
-		LicenseKey: "test_key",
+		LicenseKey: validTestLicenseKey,
 		APIURL:     ts.URL,
 	})
 
@@ -2483,7 +2501,7 @@ func TestRunStatusWithValidLicenseJSON(t *testing.T) {
 // --- checkAPI with mock server non-200 ---
 
 func TestCheckAPIUnhealthy(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := newIPv4Server(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(503)
 	}))
 	defer ts.Close()
@@ -2504,7 +2522,7 @@ func TestCheckAPIUnhealthy(t *testing.T) {
 // --- checkAPI with mock server 200 ---
 
 func TestCheckAPIOK(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := newIPv4Server(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte(`{"status": "ok"}`))
 	}))
@@ -2523,7 +2541,7 @@ func TestCheckAPIOK(t *testing.T) {
 // --- checkLicense with mock API success ---
 
 func TestCheckLicenseValid(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := newIPv4Server(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"valid":      true,
 			"tier":       "pro",
@@ -2534,7 +2552,7 @@ func TestCheckLicenseValid(t *testing.T) {
 	defer ts.Close()
 
 	withTestConfig(t, &config.Config{
-		LicenseKey: "test_key",
+		LicenseKey: validTestLicenseKey,
 		APIURL:     ts.URL,
 	})
 
@@ -2550,7 +2568,7 @@ func TestCheckLicenseValid(t *testing.T) {
 // --- runDoctor with mock API ---
 
 func TestRunDoctorWithMockAPI(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := newIPv4Server(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v1/health":
 			w.WriteHeader(200)
@@ -2581,7 +2599,7 @@ func TestRunDoctorWithMockAPI(t *testing.T) {
 
 	withTestConfig(t, &config.Config{
 		StorageDir: storageDir,
-		LicenseKey: "test_key",
+		LicenseKey: validTestLicenseKey,
 		APIURL:     ts.URL,
 		Repo:       "org/myrepo",
 	})
@@ -2917,7 +2935,7 @@ func TestRunCollectConfigDefaults(t *testing.T) {
 	_ = os.Chdir(noPolicy)
 	t.Cleanup(func() { _ = os.Chdir(origDir) })
 
-	collectFormat = ""   // empty - use config default
+	collectFormat = "" // empty - use config default
 	collectOutput = filepath.Join(t.TempDir(), "out.json")
 	collectStore = false
 	collectStorageDir = "" // empty - use config default
@@ -2959,7 +2977,7 @@ func TestPrintDiscoveryTextZeroRunnable(t *testing.T) {
 func TestRunPipelineWithAPISubmit(t *testing.T) {
 	var receivedPayload map[string]interface{}
 
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := newIPv4Server(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v1/reports" && r.Method == "POST" {
 			_ = json.NewDecoder(r.Body).Decode(&receivedPayload)
 			w.WriteHeader(201) // Created
@@ -2997,7 +3015,7 @@ func TestRunPipelineWithAPISubmit(t *testing.T) {
 		Output:     filepath.Join(t.TempDir(), "pipeline.json"),
 		Store:      false,
 		Threshold:  0,
-		LicenseKey: "test_key",
+		LicenseKey: validTestLicenseKey,
 		APIURL:     ts.URL,
 		Repo:       "org/test",
 	})
@@ -3014,7 +3032,7 @@ func TestRunPipelineWithAPISubmit(t *testing.T) {
 }
 
 func TestRunPipelineWithAPIError(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := newIPv4Server(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "server error"})
 	}))
@@ -3047,7 +3065,7 @@ func TestRunPipelineWithAPIError(t *testing.T) {
 		Output:     filepath.Join(t.TempDir(), "pipeline.json"),
 		Store:      false,
 		Threshold:  0,
-		LicenseKey: "test_key",
+		LicenseKey: validTestLicenseKey,
 		APIURL:     ts.URL,
 		Repo:       "org/test",
 	})
@@ -3059,7 +3077,7 @@ func TestRunPipelineWithAPIError(t *testing.T) {
 // --- submitToAPI direct test ---
 
 func TestSubmitToAPISuccess(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := newIPv4Server(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v1/reports" {
 			w.WriteHeader(201)
 			return
@@ -3070,7 +3088,7 @@ func TestSubmitToAPISuccess(t *testing.T) {
 
 	report := minimalReport()
 	err := submitToAPI(report, PipelineConfig{
-		LicenseKey: "test_key",
+		LicenseKey: validTestLicenseKey,
 		APIURL:     ts.URL,
 		Repo:       "org/test",
 	})
@@ -3096,7 +3114,7 @@ func TestSubmitToAPIDefaultURL(t *testing.T) {
 	// which will fail to connect, but we verify the error message
 	report := minimalReport()
 	err := submitToAPI(report, PipelineConfig{
-		LicenseKey: "test_key",
+		LicenseKey: validTestLicenseKey,
 		APIURL:     "", // should default
 		Repo:       "org/test",
 	})
@@ -3219,7 +3237,7 @@ func TestCheckStorageEmpty(t *testing.T) {
 // --- runDoctor all pass (all checks should produce "all checks passed") ---
 
 func TestRunDoctorAllPass(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := newIPv4Server(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v1/health":
 			w.WriteHeader(200)
@@ -3247,7 +3265,7 @@ func TestRunDoctorAllPass(t *testing.T) {
 
 	withTestConfig(t, &config.Config{
 		StorageDir: storageDir,
-		LicenseKey: "test_key",
+		LicenseKey: validTestLicenseKey,
 		APIURL:     ts.URL,
 		Repo:       "org/myrepo",
 	})
@@ -3292,8 +3310,8 @@ func TestBuildComplianceExportMultiTool(t *testing.T) {
 			{Tool: "vaultspectre", Category: "stale", Severity: "critical", Resource: "secret/api"},
 		},
 		Summary: models.CrossToolSummary{
-			TotalIssues: 3,
-			HealthScore: "warning",
+			TotalIssues:  3,
+			HealthScore:  "warning",
 			ScorePercent: 70.0,
 		},
 	}

@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/ppiankov/spectrehub/internal/aggregator"
+	"github.com/ppiankov/spectrehub/internal/api"
 	"github.com/ppiankov/spectrehub/internal/apiclient"
 	"github.com/ppiankov/spectrehub/internal/models"
 	"github.com/ppiankov/spectrehub/internal/policy"
@@ -217,9 +219,16 @@ func getStoragePath(storageDir string) (string, error) {
 // Returns an error if the upload fails — callers should treat this as fatal
 // so CI pipelines don't silently pass with untracked results.
 func submitToAPI(report *models.AggregatedReport, pcfg PipelineConfig) error {
+	if strings.TrimSpace(pcfg.LicenseKey) == "" {
+		return nil
+	}
+
 	apiURL := pcfg.APIURL
 	if apiURL == "" {
 		apiURL = "https://api.spectrehub.dev"
+	}
+	if err := api.ValidateLicenseKey(pcfg.LicenseKey); err != nil {
+		return fmt.Errorf("invalid license key: %w", err)
 	}
 
 	client := apiclient.New(apiURL, pcfg.LicenseKey)
@@ -236,6 +245,16 @@ func submitToAPI(report *models.AggregatedReport, pcfg PipelineConfig) error {
 		Score:      report.Summary.ScorePercent,
 		Health:     report.Summary.HealthScore,
 		RawJSON:    string(rawJSON),
+	}
+	if err := api.ValidateReportInput(api.ReportInput{
+		Repo:       payload.Repo,
+		TotalTools: payload.TotalTools,
+		Issues:     payload.Issues,
+		Score:      payload.Score,
+		Health:     payload.Health,
+		RawJSON:    payload.RawJSON,
+	}); err != nil {
+		return fmt.Errorf("invalid API payload: %w", err)
 	}
 
 	if err := client.SubmitReport(payload); err != nil {

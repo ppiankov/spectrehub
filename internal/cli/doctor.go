@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/ppiankov/spectrehub/internal/api"
 	"github.com/ppiankov/spectrehub/internal/apiclient"
 	"github.com/ppiankov/spectrehub/internal/config"
 	"github.com/ppiankov/spectrehub/internal/discovery"
@@ -221,6 +222,13 @@ func checkRepo() doctorCheck {
 			Name:   "repo",
 			Status: "ok",
 			Detail: "not needed (no license key)",
+		}
+	}
+	if err := api.ValidateRepo(repo); err != nil {
+		return doctorCheck{
+			Name:   "repo",
+			Status: "fail",
+			Detail: fmt.Sprintf("invalid repo: %v", err),
 		}
 	}
 

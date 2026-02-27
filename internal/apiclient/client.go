@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/ppiankov/spectrehub/internal/api"
 )
 
 // Client submits reports to the SpectreHub API.
@@ -41,6 +43,19 @@ type ReportPayload struct {
 func (c *Client) SubmitReport(payload ReportPayload) error {
 	if c == nil {
 		return nil
+	}
+	if err := api.ValidateLicenseKey(c.licenseKey); err != nil {
+		return fmt.Errorf("invalid license key: %w", err)
+	}
+	if err := api.ValidateReportInput(api.ReportInput{
+		Repo:       payload.Repo,
+		TotalTools: payload.TotalTools,
+		Issues:     payload.Issues,
+		Score:      payload.Score,
+		Health:     payload.Health,
+		RawJSON:    payload.RawJSON,
+	}); err != nil {
+		return fmt.Errorf("invalid report payload: %w", err)
 	}
 
 	body, err := json.Marshal(payload)
@@ -89,6 +104,9 @@ func (c *Client) ValidateLicense() (*LicenseInfo, error) {
 	if c == nil {
 		return nil, nil
 	}
+	if err := api.ValidateLicenseKey(c.licenseKey); err != nil {
+		return nil, fmt.Errorf("invalid license key: %w", err)
+	}
 
 	req, err := http.NewRequest("GET", c.baseURL+"/v1/license/validate", nil)
 	if err != nil {
@@ -133,6 +151,9 @@ type ReposInfo struct {
 func (c *Client) ListRepos() (*ReposInfo, error) {
 	if c == nil {
 		return nil, nil
+	}
+	if err := api.ValidateLicenseKey(c.licenseKey); err != nil {
+		return nil, fmt.Errorf("invalid license key: %w", err)
 	}
 
 	req, err := http.NewRequest("GET", c.baseURL+"/v1/repos", nil)

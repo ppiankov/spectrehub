@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"fmt"
 	"strings"
 
+	"github.com/ppiankov/spectrehub/internal/api"
 	"github.com/ppiankov/spectrehub/internal/collector"
 	"github.com/spf13/cobra"
 )
@@ -96,6 +98,11 @@ func runCollect(cmd *cobra.Command, args []string) error {
 	repo := collectRepo
 	if repo == "" {
 		repo = cfg.Repo
+	}
+	if repo != "" {
+		if err := api.ValidateRepo(repo); err != nil {
+			return &ValidationError{Message: fmt.Sprintf("invalid repo value: %v", err)}
+		}
 	}
 
 	return RunPipeline(toolReports, PipelineConfig{
