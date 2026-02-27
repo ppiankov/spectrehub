@@ -15,6 +15,7 @@ func TestBuildExplanation(t *testing.T) {
 			{Tool: "vaultspectre", Category: "missing", Severity: "critical", Resource: "secret/db"},
 			{Tool: "vaultspectre", Category: "stale", Severity: "low", Resource: "secret/cache"},
 			{Tool: "s3spectre", Category: "unused", Severity: "medium", Resource: "s3://old-bucket"},
+			{Tool: "vaultspectre", Category: "info", Severity: "low", Resource: ""}, // empty resource → skipped in affected count
 		},
 		ToolReports: map[string]models.ToolReport{
 			"vaultspectre": {
@@ -30,6 +31,10 @@ func TestBuildExplanation(t *testing.T) {
 				RawData: &models.S3Report{
 					Summary: models.S3Summary{TotalBuckets: 5},
 				},
+			},
+			"unsupported-tool": {
+				Tool:        "unsupported-tool",
+				IsSupported: false,
 			},
 		},
 		Summary: models.CrossToolSummary{
