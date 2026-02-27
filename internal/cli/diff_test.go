@@ -1,6 +1,10 @@
 package cli
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -167,5 +171,198 @@ func TestComputeDiffEmptyReports(t *testing.T) {
 	}
 	if result.Summary.Delta != 0 {
 		t.Errorf("expected delta 0, got %d", result.Summary.Delta)
+	}
+}
+
+// --- outputDiff tests ---
+
+func sampleDiffResult() *DiffResult {
+	return &DiffResult{
+		Baseline: "2026-01-01 10:00:00",
+		Current:  "2026-02-01 10:00:00",
+		NewIssues: []models.NormalizedIssue{
+			{Tool: "vaultspectre", Category: "missing", Severity: "critical", Resource: "secret/new", Evidence: "key not found"},
+		},
+		ResolvedIssues: []models.NormalizedIssue{
+			{Tool: "s3spectre", Category: "unused", Severity: "low", Resource: "s3://old-bucket"},
+		},
+		Summary: DiffSummary{
+			BaselineTotal: 5,
+			CurrentTotal:  5,
+			NewCount:      1,
+			ResolvedCount: 1,
+			Delta:         0,
+			NewBySeverity: map[string]int{"critical": 1},
+			NewByTool:     map[string]int{"vaultspectre": 1},
+			NewByCategory: map[string]int{"missing": 1},
+		},
+	}
+}
+
+func TestOutputDiffJSON(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "diff.json")
+
+	if err := outputDiff(sampleDiffResult(), "json", out); err != nil {
+		t.Fatalf("outputDiff(json): %v", err)
+	}
+
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var result DiffResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if result.Summary.NewCount != 1 {
+		t.Errorf("NewCount = %d, want 1", result.Summary.NewCount)
+	}
+	if result.Summary.ResolvedCount != 1 {
+		t.Errorf("ResolvedCount = %d, want 1", result.Summary.ResolvedCount)
+	}
+}
+
+func TestOutputDiffText(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "diff.txt")
+
+	if err := outputDiff(sampleDiffResult(), "text", out); err != nil {
+		t.Fatalf("outputDiff(text): %v", err)
+	}
+
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := string(data)
+
+	if !strings.Contains(content, "Drift Delta") {
+		t.Error("missing header")
+	}
+	if !strings.Contains(content, "secret/new") {
+		t.Error("missing new issue resource")
+	}
+	if !strings.Contains(content, "s3://old-bucket") {
+		t.Error("missing resolved issue")
+	}
+}
+
+func TestOutputDiffUnsupportedFormat(t *testing.T) {
+	err := outputDiff(sampleDiffResult(), "xml", "")
+	if err == nil {
+		t.Fatal("expected error for unsupported format")
+	}
+}
+
+func TestPrintDiffTextNoDrift(t *testing.T) {
+	result := &DiffResult{
+		Baseline:       "2026-01-01 10:00:00",
+		Current:        "2026-02-01 10:00:00",
+		NewIssues:      nil,
+		ResolvedIssues: nil,
+		Summary: DiffSummary{
+			BaselineTotal: 3,
+			CurrentTotal:  3,
+			NewCount:      0,
+			ResolvedCount: 0,
+			Delta:         0,
+		},
+	}
+
+	out := filepath.Join(t.TempDir(), "nodrift.txt")
+	f, err := os.Create(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := printDiffText(f, result); err != nil {
+		t.Fatalf("printDiffText: %v", err)
+	}
+	_ = f.Close()
+
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "No drift detected") {
+		t.Error("expected 'No drift detected' message")
+	}
+}
+
+func TestPrintDiffTextOnlyResolved(t *testing.T) {
+	result := &DiffResult{
+		Baseline:  "2026-01-01 10:00:00",
+		Current:   "2026-02-01 10:00:00",
+		NewIssues: nil,
+		ResolvedIssues: []models.NormalizedIssue{
+			{Tool: "vaultspectre", Category: "missing", Resource: "secret/old"},
+		},
+		Summary: DiffSummary{
+			BaselineTotal: 3,
+			CurrentTotal:  2,
+			NewCount:      0,
+			ResolvedCount: 1,
+			Delta:         -1,
+		},
+	}
+
+	out := filepath.Join(t.TempDir(), "resolved.txt")
+	f, err := os.Create(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := printDiffText(f, result); err != nil {
+		t.Fatalf("printDiffText: %v", err)
+	}
+	_ = f.Close()
+
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "No new issues") {
+		t.Error("expected 'No new issues' message")
+	}
+}
+
+// --- loadReportFromFile tests ---
+
+func TestLoadReportFromFileValid(t *testing.T) {
+	report := &models.AggregatedReport{
+		Timestamp: time.Date(2026, 2, 1, 10, 0, 0, 0, time.UTC),
+		Issues: []models.NormalizedIssue{
+			{Tool: "vaultspectre", Category: "missing", Severity: "critical", Resource: "secret/db"},
+		},
+		Summary: models.CrossToolSummary{TotalIssues: 1},
+	}
+
+	data, _ := json.Marshal(report)
+	tmp := filepath.Join(t.TempDir(), "report.json")
+	_ = os.WriteFile(tmp, data, 0644)
+
+	loaded, err := loadReportFromFile(tmp)
+	if err != nil {
+		t.Fatalf("loadReportFromFile: %v", err)
+	}
+	if loaded.Summary.TotalIssues != 1 {
+		t.Errorf("TotalIssues = %d, want 1", loaded.Summary.TotalIssues)
+	}
+}
+
+func TestLoadReportFromFileInvalid(t *testing.T) {
+	tmp := filepath.Join(t.TempDir(), "bad.json")
+	_ = os.WriteFile(tmp, []byte("{not json"), 0644)
+
+	_, err := loadReportFromFile(tmp)
+	if err == nil {
+		t.Fatal("expected error for invalid JSON")
+	}
+}
+
+func TestLoadReportFromFileMissing(t *testing.T) {
+	_, err := loadReportFromFile("/nonexistent/report.json")
+	if err == nil {
+		t.Fatal("expected error for missing file")
 	}
 }
