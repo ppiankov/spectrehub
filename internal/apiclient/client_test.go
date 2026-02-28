@@ -278,6 +278,102 @@ func TestListReposServerError(t *testing.T) {
 	}
 }
 
+func validUserActivityPayload() UserActivityPayload {
+	return UserActivityPayload{
+		TargetHash: "sha256:abc123",
+		Users: []UserActivityEntry{
+			{
+				Username:     "appuser",
+				DatabaseName: "admin",
+				IsPrivileged: false,
+			},
+		},
+	}
+}
+
+func TestSubmitUserActivityNilClient(t *testing.T) {
+	var c *Client
+	err := c.SubmitUserActivity(UserActivityPayload{})
+	if err != nil {
+		t.Errorf("expected nil error for nil client, got %v", err)
+	}
+}
+
+func TestSubmitUserActivitySuccess(t *testing.T) {
+	client := newMockClient("https://api.spectrehub.dev", testLicenseKey, func(r *http.Request) (*http.Response, error) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("method = %s, want POST", r.Method)
+		}
+		if r.URL.Path != "/v1/users/activity" {
+			t.Fatalf("path = %s, want /v1/users/activity", r.URL.Path)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer "+testLicenseKey {
+			t.Fatalf("authorization header = %s", got)
+		}
+
+		var payload UserActivityPayload
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode request body: %v", err)
+		}
+		if payload.TargetHash != "sha256:abc123" {
+			t.Fatalf("payload.TargetHash = %s, want sha256:abc123", payload.TargetHash)
+		}
+		if len(payload.Users) != 1 {
+			t.Fatalf("payload.Users len = %d, want 1", len(payload.Users))
+		}
+
+		return jsonResponse(t, http.StatusCreated, map[string]interface{}{"count": 1}), nil
+	})
+
+	if err := client.SubmitUserActivity(validUserActivityPayload()); err != nil {
+		t.Fatalf("SubmitUserActivity: %v", err)
+	}
+}
+
+func TestSubmitUserActivityUnauthorized(t *testing.T) {
+	client := newMockClient("https://api.spectrehub.dev", testLicenseKey, func(r *http.Request) (*http.Response, error) {
+		return jsonResponse(t, http.StatusUnauthorized, map[string]string{"error": "invalid license"}), nil
+	})
+
+	err := client.SubmitUserActivity(validUserActivityPayload())
+	if err == nil {
+		t.Fatal("expected error for unauthorized request")
+	}
+}
+
+func TestSubmitUserActivityForbidden(t *testing.T) {
+	client := newMockClient("https://api.spectrehub.dev", testLicenseKey, func(r *http.Request) (*http.Response, error) {
+		return jsonResponse(t, http.StatusForbidden, map[string]string{"error": "user activity requires Team tier or higher"}), nil
+	})
+
+	err := client.SubmitUserActivity(validUserActivityPayload())
+	if err == nil {
+		t.Fatal("expected error for forbidden request")
+	}
+}
+
+func TestSubmitUserActivityValidationError(t *testing.T) {
+	client := newMockClient("https://api.spectrehub.dev", "bad_key", func(r *http.Request) (*http.Response, error) {
+		t.Fatal("transport should not be called when validation fails")
+		return nil, nil
+	})
+
+	err := client.SubmitUserActivity(validUserActivityPayload())
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+}
+
+func TestSubmitUserActivityServerError(t *testing.T) {
+	client := newMockClient("https://api.spectrehub.dev", testLicenseKey, func(r *http.Request) (*http.Response, error) {
+		return jsonResponse(t, http.StatusInternalServerError, map[string]string{"error": "internal error"}), nil
+	})
+
+	if err := client.SubmitUserActivity(validUserActivityPayload()); err == nil {
+		t.Fatal("expected error for server error")
+	}
+}
+
 func TestConnectionErrors(t *testing.T) {
 	transportErr := errors.New("dial error")
 	client := newMockClient("https://api.spectrehub.dev", testLicenseKey, func(r *http.Request) (*http.Response, error) {
@@ -292,5 +388,8 @@ func TestConnectionErrors(t *testing.T) {
 	}
 	if _, err := client.ListRepos(); err == nil {
 		t.Fatal("expected connection error for list")
+	}
+	if err := client.SubmitUserActivity(validUserActivityPayload()); err == nil {
+		t.Fatal("expected connection error for user activity")
 	}
 }

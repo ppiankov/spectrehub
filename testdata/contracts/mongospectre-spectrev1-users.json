@@ -1,0 +1,43 @@
+{
+  "schema": "spectre/v1",
+  "tool": "mongospectre",
+  "version": "0.3.0",
+  "timestamp": "2026-02-28T10:00:00Z",
+  "target": {
+    "type": "mongodb",
+    "uri_hash": "sha256:abc123def456"
+  },
+  "findings": [
+    {
+      "id": "INACTIVE_USER",
+      "severity": "medium",
+      "location": "admin.",
+      "message": "user \"appuser\" has no authentication in the last 7 days"
+    },
+    {
+      "id": "INACTIVE_PRIVILEGED_USER",
+      "severity": "high",
+      "location": "admin.",
+      "message": "privileged user \"root\" has no authentication in the last 7 days"
+    },
+    {
+      "id": "FAILED_AUTH_ONLY",
+      "severity": "medium",
+      "location": "admin.",
+      "message": "user \"botuser\" has only failed authentication attempts in the last 7 days"
+    },
+    {
+      "id": "UNUSED_COLLECTION",
+      "severity": "medium",
+      "location": "mydb.legacy_logs",
+      "message": "collection has zero reads in 90 days"
+    }
+  ],
+  "summary": {
+    "total": 4,
+    "high": 1,
+    "medium": 3,
+    "low": 0,
+    "info": 0
+  }
+}

@@ -398,6 +398,9 @@ func TestNormalizeMongo(t *testing.T) {
 			{Type: "MULTIPLE_ADMIN_USERS", Severity: "medium", Database: "mydb", Message: "many admins"},
 			{Type: "OK", Severity: "info", Database: "mydb", Collection: "ok_col", Message: "ok"},
 			{Type: "UNKNOWN_TYPE", Severity: "medium", Database: "mydb", Message: "unknown"},
+			{Type: "INACTIVE_USER", Severity: "medium", Database: "admin", Message: `user "stale" has no authentication in the last 7 days`},
+			{Type: "INACTIVE_PRIVILEGED_USER", Severity: "high", Database: "admin", Message: `privileged user "old_admin" has no authentication in the last 7 days`},
+			{Type: "FAILED_AUTH_ONLY", Severity: "medium", Database: "admin", Message: `user "broken" has only failed authentication attempts in the last 7 days`},
 		},
 	}
 
@@ -413,9 +416,24 @@ func TestNormalizeMongo(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// OK type should be skipped
-	if len(issues) != 16 {
-		t.Fatalf("expected 16 issues, got %d", len(issues))
+	// OK type should be skipped; 16 original + 3 user findings = 19
+	if len(issues) != 19 {
+		t.Fatalf("expected 19 issues, got %d", len(issues))
+	}
+
+	// Verify user finding category mappings
+	categoryByEvidence := make(map[string]string)
+	for _, issue := range issues {
+		categoryByEvidence[issue.Evidence] = issue.Category
+	}
+	if got := categoryByEvidence[`user "stale" has no authentication in the last 7 days`]; got != models.StatusStale {
+		t.Fatalf("INACTIVE_USER category = %s, want %s", got, models.StatusStale)
+	}
+	if got := categoryByEvidence[`privileged user "old_admin" has no authentication in the last 7 days`]; got != models.StatusStale {
+		t.Fatalf("INACTIVE_PRIVILEGED_USER category = %s, want %s", got, models.StatusStale)
+	}
+	if got := categoryByEvidence[`user "broken" has only failed authentication attempts in the last 7 days`]; got != models.StatusMisconfig {
+		t.Fatalf("FAILED_AUTH_ONLY category = %s, want %s", got, models.StatusMisconfig)
 	}
 }
 
@@ -481,8 +499,11 @@ func TestNormalizeSpectreV1(t *testing.T) {
 			{ID: "RISKY", Severity: "high", Location: "s3://risky", Message: "risky access"},
 			{ID: "DYNAMIC_COLLECTION", Severity: "info", Location: "db.dynamic", Message: "dynamic"},
 			{ID: "UNKNOWN_ID", Severity: "low", Location: "somewhere", Message: "unknown finding"},
+			{ID: "INACTIVE_USER", Severity: "medium", Location: "admin.", Message: `user "stale" has no authentication`},
+			{ID: "INACTIVE_PRIVILEGED_USER", Severity: "high", Location: "admin.", Message: `privileged user "root" inactive`},
+			{ID: "FAILED_AUTH_ONLY", Severity: "medium", Location: "admin.", Message: `user "broken" failed auth only`},
 		},
-		Summary: models.SpectreV1Summary{Total: 7},
+		Summary: models.SpectreV1Summary{Total: 10},
 	}
 
 	report := models.ToolReport{
@@ -497,8 +518,8 @@ func TestNormalizeSpectreV1(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(issues) != 7 {
-		t.Fatalf("expected 7 issues, got %d", len(issues))
+	if len(issues) != 10 {
+		t.Fatalf("expected 10 issues, got %d", len(issues))
 	}
 
 	// Verify category mappings
@@ -515,6 +536,24 @@ func TestNormalizeSpectreV1(t *testing.T) {
 		"s3://risky":            models.StatusAccessDeny,
 		"db.dynamic":            models.StatusDrift,
 		"somewhere":             models.StatusError,
+	}
+
+	// User activity findings share "admin." location — verify by message
+	for _, issue := range issues {
+		switch issue.Evidence {
+		case `user "stale" has no authentication`:
+			if issue.Category != models.StatusStale {
+				t.Fatalf("INACTIVE_USER category = %s, want %s", issue.Category, models.StatusStale)
+			}
+		case `privileged user "root" inactive`:
+			if issue.Category != models.StatusStale {
+				t.Fatalf("INACTIVE_PRIVILEGED_USER category = %s, want %s", issue.Category, models.StatusStale)
+			}
+		case `user "broken" failed auth only`:
+			if issue.Category != models.StatusMisconfig {
+				t.Fatalf("FAILED_AUTH_ONLY category = %s, want %s", issue.Category, models.StatusMisconfig)
+			}
+		}
 	}
 
 	for resource, expectedCat := range expectedCategories {

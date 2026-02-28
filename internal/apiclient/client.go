@@ -140,6 +140,62 @@ func (c *Client) ValidateLicense() (*LicenseInfo, error) {
 	return &info, nil
 }
 
+// UserActivityEntry is a single user record for the activity API.
+type UserActivityEntry struct {
+	Username     string `json:"username"`
+	DatabaseName string `json:"database_name"`
+	LastSeenAt   string `json:"last_seen_at"`
+	RolesJSON    string `json:"roles_json"`
+	IsPrivileged bool   `json:"is_privileged"`
+}
+
+// UserActivityPayload is the body for POST /v1/users/activity.
+type UserActivityPayload struct {
+	TargetHash string              `json:"target_hash"`
+	Users      []UserActivityEntry `json:"users"`
+}
+
+// SubmitUserActivity sends user activity data to the API.
+func (c *Client) SubmitUserActivity(payload UserActivityPayload) error {
+	if c == nil {
+		return nil
+	}
+	if err := api.ValidateLicenseKey(c.licenseKey); err != nil {
+		return fmt.Errorf("invalid license key: %w", err)
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal user activity: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", c.baseURL+"/v1/users/activity", bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+c.licenseKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("submit user activity: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusCreated {
+		var errResp map[string]string
+		_ = json.NewDecoder(resp.Body).Decode(&errResp)
+		msg := errResp["error"]
+		if msg == "" {
+			msg = resp.Status
+		}
+		return fmt.Errorf("API error: %s", msg)
+	}
+
+	return nil
+}
+
 // ReposInfo holds the response from GET /v1/repos.
 type ReposInfo struct {
 	Repos    []string `json:"repos"`

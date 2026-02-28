@@ -210,8 +210,8 @@ func TestCollectFromDirectory(t *testing.T) {
 		t.Fatalf("CollectFromDirectory failed: %v", err)
 	}
 
-	if len(reports) != 12 {
-		t.Errorf("Expected 12 reports (6 legacy + 6 spectre/v1), got %d", len(reports))
+	if len(reports) != 13 {
+		t.Errorf("Expected 13 reports (6 legacy + 7 spectre/v1), got %d", len(reports))
 	}
 
 	// Verify we got one report from each tool

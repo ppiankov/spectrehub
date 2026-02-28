@@ -10,6 +10,7 @@ import (
 	"github.com/ppiankov/spectrehub/internal/aggregator"
 	"github.com/ppiankov/spectrehub/internal/api"
 	"github.com/ppiankov/spectrehub/internal/apiclient"
+	"github.com/ppiankov/spectrehub/internal/ingest"
 	"github.com/ppiankov/spectrehub/internal/models"
 	"github.com/ppiankov/spectrehub/internal/policy"
 	"github.com/ppiankov/spectrehub/internal/reporter"
@@ -94,6 +95,11 @@ func RunPipeline(toolReports []models.ToolReport, pcfg PipelineConfig) error {
 		if err := submitToAPI(aggregatedReport, pcfg); err != nil {
 			logError("API upload failed: %v", err)
 			return err
+		}
+
+		// Step 5.5: Submit user activity from mongospectre findings (non-fatal)
+		if err := submitUserActivity(toolReports, pcfg); err != nil {
+			logVerbose("User activity sync skipped: %v", err)
 		}
 	}
 
@@ -213,6 +219,50 @@ func getStoragePath(storageDir string) (string, error) {
 	}
 
 	return absPath, nil
+}
+
+// submitUserActivity extracts user activity data from mongospectre findings
+// and sends it to the SpectreHub API. Returns nil if no user data is found
+// or if the license tier doesn't support user activity.
+func submitUserActivity(toolReports []models.ToolReport, pcfg PipelineConfig) error {
+	if strings.TrimSpace(pcfg.LicenseKey) == "" {
+		return nil
+	}
+
+	apiURL := pcfg.APIURL
+	if apiURL == "" {
+		apiURL = "https://api.spectrehub.dev"
+	}
+
+	client := apiclient.New(apiURL, pcfg.LicenseKey)
+	if client == nil {
+		return nil
+	}
+
+	for _, tr := range toolReports {
+		v1, ok := tr.RawData.(*models.SpectreV1Report)
+		if !ok || v1 == nil || v1.Tool != "mongospectre" {
+			continue
+		}
+
+		entries := ingest.ExtractUserActivity(v1)
+		if len(entries) == 0 {
+			continue
+		}
+
+		payload := apiclient.UserActivityPayload{
+			TargetHash: v1.Target.URIHash,
+			Users:      entries,
+		}
+
+		if err := client.SubmitUserActivity(payload); err != nil {
+			return fmt.Errorf("submit user activity: %w", err)
+		}
+
+		fmt.Fprintf(os.Stderr, "User activity synced (%d users for %s)\n",
+			len(entries), v1.Target.URIHash)
+	}
+	return nil
 }
 
 // submitToAPI sends the aggregated report to the SpectreHub API.
