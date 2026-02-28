@@ -565,7 +565,7 @@ Features to be prioritized based on user feedback:
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details
+Business Source License 1.1 - see [LICENSE](LICENSE) file for details
 
 ## Support
 
