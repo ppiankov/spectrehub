@@ -126,4 +126,12 @@ var Registry = map[models.ToolType]ToolExecInfo{
 		ConfigFiles: []string{".rdsspectre.yaml"},
 		InstallHint: "brew install ppiankov/tap/rdsspectre",
 	},
+	models.ToolAzure: {
+		Binary:      "azurespectre",
+		Subcommand:  "scan",
+		JSONFlag:    "--format json",
+		EnvVars:     []string{"AZURE_SUBSCRIPTION_ID", "AZURE_TENANT_ID", "AZURE_CLIENT_ID"},
+		ConfigFiles: []string{".azurespectre.yaml"},
+		InstallHint: "brew install ppiankov/tap/azurespectre",
+	},
 }

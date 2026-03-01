@@ -1,0 +1,37 @@
+{
+  "schema": "spectre/v1",
+  "tool": "azurespectre",
+  "version": "0.1.0",
+  "timestamp": "2026-03-01T10:00:00Z",
+  "target": {
+    "type": "azure-subscription",
+    "uri_hash": "sha256:azure123"
+  },
+  "findings": [
+    {
+      "id": "STOPPED_VM",
+      "severity": "high",
+      "location": "eastus/rg-staging/vm-idle-01",
+      "message": "VM deallocated for 45 days (threshold: 30)"
+    },
+    {
+      "id": "UNATTACHED_DISK",
+      "severity": "high",
+      "location": "eastus/rg-staging/disk-orphan-01",
+      "message": "Managed disk unattached, 128 GB Premium_LRS (~$17.28/mo)"
+    },
+    {
+      "id": "UNUSED_IP",
+      "severity": "medium",
+      "location": "eastus/rg-prod/ip-unused-01",
+      "message": "Public IP not associated with any resource (~$3.65/mo)"
+    }
+  ],
+  "summary": {
+    "total": 3,
+    "high": 2,
+    "medium": 1,
+    "low": 0,
+    "info": 0
+  }
+}

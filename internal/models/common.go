@@ -20,6 +20,7 @@ const (
 	ToolRedis      ToolType = "redisspectre"
 	ToolECR        ToolType = "ecrspectre"
 	ToolRDS        ToolType = "rdsspectre"
+	ToolAzure      ToolType = "azurespectre"
 	ToolUnknown    ToolType = "unknown"
 )
 
@@ -113,6 +114,12 @@ var SupportedTools = map[ToolType]ToolInfo{
 	},
 	ToolRDS: {
 		Name:          "rdsspectre",
+		MinVersion:    "0.1.0",
+		HasValidation: true,
+		HasNormalizer: true,
+	},
+	ToolAzure: {
+		Name:          "azurespectre",
 		MinVersion:    "0.1.0",
 		HasValidation: true,
 		HasNormalizer: true,

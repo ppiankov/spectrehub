@@ -62,4 +62,5 @@ var SpectreV1TargetTypes = map[string]string{
 	"redisspectre": "redis",
 	"ecrspectre":   "ecr",
 	"rdsspectre":   "rds",
+	"azurespectre": "azure-subscription",
 }

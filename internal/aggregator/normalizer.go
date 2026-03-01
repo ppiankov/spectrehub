@@ -92,6 +92,9 @@ func mapSpectreV1IDToCategory(id string) string {
 		// awsspectre
 		"IDLE_EC2", "STOPPED_EC2", "IDLE_ALB", "IDLE_NLB", "IDLE_NAT_GATEWAY",
 		"IDLE_RDS", "IDLE_LAMBDA", "DETACHED_EBS", "UNUSED_EIP", "UNUSED_SECURITY_GROUP",
+		// azurespectre
+		"IDLE_VM", "STOPPED_VM", "UNATTACHED_DISK", "UNUSED_IP", "UNUSED_NSG",
+		"IDLE_LB", "IDLE_SQL", "IDLE_APP_SERVICE", "UNUSED_STORAGE",
 		// iamspectre
 		"UNUSED_ROLE", "UNATTACHED_POLICY":
 		return models.StatusUnused

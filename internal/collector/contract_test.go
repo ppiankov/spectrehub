@@ -33,6 +33,7 @@ func TestToolDetection(t *testing.T) {
 		{"../../testdata/contracts/redisspectre-spectrev1.json", models.ToolRedis},
 		{"../../testdata/contracts/ecrspectre-spectrev1.json", models.ToolECR},
 		{"../../testdata/contracts/rdsspectre-spectrev1.json", models.ToolRDS},
+		{"../../testdata/contracts/azurespectre-spectrev1.json", models.ToolAzure},
 	}
 
 	for _, tt := range tests {
@@ -77,6 +78,7 @@ func TestParsingSucceeds(t *testing.T) {
 		{"../../testdata/contracts/redisspectre-spectrev1.json", models.ToolRedis},
 		{"../../testdata/contracts/ecrspectre-spectrev1.json", models.ToolECR},
 		{"../../testdata/contracts/rdsspectre-spectrev1.json", models.ToolRDS},
+		{"../../testdata/contracts/azurespectre-spectrev1.json", models.ToolAzure},
 	}
 
 	for _, tt := range tests {
@@ -218,8 +220,8 @@ func TestCollectFromDirectory(t *testing.T) {
 		t.Fatalf("CollectFromDirectory failed: %v", err)
 	}
 
-	if len(reports) != 17 {
-		t.Errorf("Expected 17 reports (6 legacy + 11 spectre/v1), got %d", len(reports))
+	if len(reports) != 18 {
+		t.Errorf("Expected 18 reports (6 legacy + 12 spectre/v1), got %d", len(reports))
 	}
 
 	// Verify we got one report from each tool
@@ -229,7 +231,7 @@ func TestCollectFromDirectory(t *testing.T) {
 	}
 
 	expectedTools := []string{"vaultspectre", "s3spectre", "kafkaspectre", "clickspectre", "pgspectre", "mongospectre",
-		"kubespectre", "redisspectre", "ecrspectre", "rdsspectre"}
+		"kubespectre", "redisspectre", "ecrspectre", "rdsspectre", "azurespectre"}
 	for _, tool := range expectedTools {
 		if !toolsSeen[tool] {
 			t.Errorf("Expected to see report from %s", tool)
@@ -314,6 +316,7 @@ func TestSpectreV1Detection(t *testing.T) {
 		{"../../testdata/contracts/redisspectre-spectrev1.json", models.ToolRedis},
 		{"../../testdata/contracts/ecrspectre-spectrev1.json", models.ToolECR},
 		{"../../testdata/contracts/rdsspectre-spectrev1.json", models.ToolRDS},
+		{"../../testdata/contracts/azurespectre-spectrev1.json", models.ToolAzure},
 	}
 
 	for _, tt := range tests {
@@ -355,6 +358,7 @@ func TestSpectreV1Parsing(t *testing.T) {
 		{"../../testdata/contracts/redisspectre-spectrev1.json", "redisspectre", 3},
 		{"../../testdata/contracts/ecrspectre-spectrev1.json", "ecrspectre", 2},
 		{"../../testdata/contracts/rdsspectre-spectrev1.json", "rdsspectre", 2},
+		{"../../testdata/contracts/azurespectre-spectrev1.json", "azurespectre", 3},
 	}
 
 	for _, tt := range tests {
@@ -410,6 +414,7 @@ func TestSpectreV1Validation(t *testing.T) {
 		"../../testdata/contracts/redisspectre-spectrev1.json",
 		"../../testdata/contracts/ecrspectre-spectrev1.json",
 		"../../testdata/contracts/rdsspectre-spectrev1.json",
+		"../../testdata/contracts/azurespectre-spectrev1.json",
 	}
 
 	for _, file := range files {
@@ -504,6 +509,7 @@ func TestSpectreV1TargetTypes(t *testing.T) {
 		"redisspectre": "redis",
 		"ecrspectre":   "ecr",
 		"rdsspectre":   "rds",
+		"azurespectre": "azure-subscription",
 	}
 
 	for tool, targetType := range expected {

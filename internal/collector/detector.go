@@ -93,6 +93,8 @@ func mapToolName(name string) (models.ToolType, error) {
 		return models.ToolECR, nil
 	case "rdsspectre":
 		return models.ToolRDS, nil
+	case "azurespectre":
+		return models.ToolAzure, nil
 	default:
 		return models.ToolUnknown, fmt.Errorf("unknown tool: %s", name)
 	}
