@@ -1,0 +1,37 @@
+{
+  "schema": "spectre/v1",
+  "tool": "redisspectre",
+  "version": "0.1.0",
+  "timestamp": "2026-02-28T10:00:00Z",
+  "target": {
+    "type": "redis",
+    "uri_hash": "sha256:redis123"
+  },
+  "findings": [
+    {
+      "id": "HIGH_FRAGMENTATION",
+      "severity": "high",
+      "location": "localhost:6379",
+      "message": "memory fragmentation ratio 2.34 exceeds threshold 1.5"
+    },
+    {
+      "id": "IDLE_KEY",
+      "severity": "medium",
+      "location": "localhost:6379/key:cache:old_session",
+      "message": "key idle for 45 days (threshold: 30 days)"
+    },
+    {
+      "id": "BIG_KEY",
+      "severity": "medium",
+      "location": "localhost:6379/key:data:large_blob",
+      "message": "key size 15.2 MB exceeds threshold 10 MB"
+    }
+  ],
+  "summary": {
+    "total": 3,
+    "high": 1,
+    "medium": 2,
+    "low": 0,
+    "info": 0
+  }
+}

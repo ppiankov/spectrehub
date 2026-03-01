@@ -27,6 +27,10 @@ func TestDetectToolTypeToolField(t *testing.T) {
 		{"s3", "s3spectre", models.ToolS3, false},
 		{"kafka", "kafkaspectre", models.ToolKafka, false},
 		{"clickhouse", "clickspectre", models.ToolClickHouse, false},
+		{"kube", "kubespectre", models.ToolKube, false},
+		{"redis", "redisspectre", models.ToolRedis, false},
+		{"ecr", "ecrspectre", models.ToolECR, false},
+		{"rds", "rdsspectre", models.ToolRDS, false},
 		{"unknown", "unknownspectre", models.ToolUnknown, true},
 	}
 

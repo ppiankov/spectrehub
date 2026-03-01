@@ -29,6 +29,10 @@ func TestToolDetection(t *testing.T) {
 		{"../../testdata/contracts/clickspectre-spectrev1.json", models.ToolClickHouse},
 		{"../../testdata/contracts/vaultspectre-spectrev1.json", models.ToolVault},
 		{"../../testdata/contracts/mongospectre-spectrev1.json", models.ToolMongo},
+		{"../../testdata/contracts/kubespectre-spectrev1.json", models.ToolKube},
+		{"../../testdata/contracts/redisspectre-spectrev1.json", models.ToolRedis},
+		{"../../testdata/contracts/ecrspectre-spectrev1.json", models.ToolECR},
+		{"../../testdata/contracts/rdsspectre-spectrev1.json", models.ToolRDS},
 	}
 
 	for _, tt := range tests {
@@ -69,6 +73,10 @@ func TestParsingSucceeds(t *testing.T) {
 		{"../../testdata/contracts/clickspectre-spectrev1.json", models.ToolClickHouse},
 		{"../../testdata/contracts/vaultspectre-spectrev1.json", models.ToolVault},
 		{"../../testdata/contracts/mongospectre-spectrev1.json", models.ToolMongo},
+		{"../../testdata/contracts/kubespectre-spectrev1.json", models.ToolKube},
+		{"../../testdata/contracts/redisspectre-spectrev1.json", models.ToolRedis},
+		{"../../testdata/contracts/ecrspectre-spectrev1.json", models.ToolECR},
+		{"../../testdata/contracts/rdsspectre-spectrev1.json", models.ToolRDS},
 	}
 
 	for _, tt := range tests {
@@ -210,8 +218,8 @@ func TestCollectFromDirectory(t *testing.T) {
 		t.Fatalf("CollectFromDirectory failed: %v", err)
 	}
 
-	if len(reports) != 13 {
-		t.Errorf("Expected 13 reports (6 legacy + 7 spectre/v1), got %d", len(reports))
+	if len(reports) != 17 {
+		t.Errorf("Expected 17 reports (6 legacy + 11 spectre/v1), got %d", len(reports))
 	}
 
 	// Verify we got one report from each tool
@@ -220,7 +228,8 @@ func TestCollectFromDirectory(t *testing.T) {
 		toolsSeen[report.Tool] = true
 	}
 
-	expectedTools := []string{"vaultspectre", "s3spectre", "kafkaspectre", "clickspectre", "pgspectre", "mongospectre"}
+	expectedTools := []string{"vaultspectre", "s3spectre", "kafkaspectre", "clickspectre", "pgspectre", "mongospectre",
+		"kubespectre", "redisspectre", "ecrspectre", "rdsspectre"}
 	for _, tool := range expectedTools {
 		if !toolsSeen[tool] {
 			t.Errorf("Expected to see report from %s", tool)
@@ -301,6 +310,10 @@ func TestSpectreV1Detection(t *testing.T) {
 		{"../../testdata/contracts/clickspectre-spectrev1.json", models.ToolClickHouse},
 		{"../../testdata/contracts/vaultspectre-spectrev1.json", models.ToolVault},
 		{"../../testdata/contracts/mongospectre-spectrev1.json", models.ToolMongo},
+		{"../../testdata/contracts/kubespectre-spectrev1.json", models.ToolKube},
+		{"../../testdata/contracts/redisspectre-spectrev1.json", models.ToolRedis},
+		{"../../testdata/contracts/ecrspectre-spectrev1.json", models.ToolECR},
+		{"../../testdata/contracts/rdsspectre-spectrev1.json", models.ToolRDS},
 	}
 
 	for _, tt := range tests {
@@ -338,6 +351,10 @@ func TestSpectreV1Parsing(t *testing.T) {
 		{"../../testdata/contracts/clickspectre-spectrev1.json", "clickspectre", 2},
 		{"../../testdata/contracts/vaultspectre-spectrev1.json", "vaultspectre", 3},
 		{"../../testdata/contracts/mongospectre-spectrev1.json", "mongospectre", 2},
+		{"../../testdata/contracts/kubespectre-spectrev1.json", "kubespectre", 3},
+		{"../../testdata/contracts/redisspectre-spectrev1.json", "redisspectre", 3},
+		{"../../testdata/contracts/ecrspectre-spectrev1.json", "ecrspectre", 2},
+		{"../../testdata/contracts/rdsspectre-spectrev1.json", "rdsspectre", 2},
 	}
 
 	for _, tt := range tests {
@@ -389,6 +406,10 @@ func TestSpectreV1Validation(t *testing.T) {
 		"../../testdata/contracts/clickspectre-spectrev1.json",
 		"../../testdata/contracts/vaultspectre-spectrev1.json",
 		"../../testdata/contracts/mongospectre-spectrev1.json",
+		"../../testdata/contracts/kubespectre-spectrev1.json",
+		"../../testdata/contracts/redisspectre-spectrev1.json",
+		"../../testdata/contracts/ecrspectre-spectrev1.json",
+		"../../testdata/contracts/rdsspectre-spectrev1.json",
 	}
 
 	for _, file := range files {
@@ -476,6 +497,13 @@ func TestSpectreV1TargetTypes(t *testing.T) {
 		"clickspectre": "clickhouse",
 		"vaultspectre": "vault",
 		"mongospectre": "mongodb",
+		"awsspectre":   "aws-account",
+		"gcsspectre":   "gcs",
+		"gcpspectre":   "gcp-projects",
+		"kubespectre":  "kubernetes",
+		"redisspectre": "redis",
+		"ecrspectre":   "ecr",
+		"rdsspectre":   "rds",
 	}
 
 	for tool, targetType := range expected {

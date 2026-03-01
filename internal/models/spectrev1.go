@@ -58,4 +58,8 @@ var SpectreV1TargetTypes = map[string]string{
 	"awsspectre":   "aws-account",
 	"gcsspectre":   "gcs",
 	"gcpspectre":   "gcp-projects",
+	"kubespectre":  "kubernetes",
+	"redisspectre": "redis",
+	"ecrspectre":   "ecr",
+	"rdsspectre":   "rds",
 }

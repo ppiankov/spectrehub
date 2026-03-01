@@ -1,0 +1,31 @@
+{
+  "schema": "spectre/v1",
+  "tool": "ecrspectre",
+  "version": "0.1.0",
+  "timestamp": "2026-02-28T10:00:00Z",
+  "target": {
+    "type": "ecr",
+    "uri_hash": "sha256:ecr123"
+  },
+  "findings": [
+    {
+      "id": "STALE_IMAGE",
+      "severity": "medium",
+      "location": "123456789012.dkr.ecr.us-east-1.amazonaws.com/myapp",
+      "message": "image tag v1.0.0 not pulled in 90 days"
+    },
+    {
+      "id": "NO_LIFECYCLE_POLICY",
+      "severity": "high",
+      "location": "123456789012.dkr.ecr.us-east-1.amazonaws.com/legacy-app",
+      "message": "repository has no lifecycle policy configured"
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "high": 1,
+    "medium": 1,
+    "low": 0,
+    "info": 0
+  }
+}

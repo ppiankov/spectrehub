@@ -1,0 +1,31 @@
+{
+  "schema": "spectre/v1",
+  "tool": "rdsspectre",
+  "version": "0.1.0",
+  "timestamp": "2026-02-28T10:00:00Z",
+  "target": {
+    "type": "rds",
+    "uri_hash": "sha256:rds123"
+  },
+  "findings": [
+    {
+      "id": "IDLE_INSTANCE",
+      "severity": "medium",
+      "location": "us-east-1/mydb-staging",
+      "message": "RDS instance has 0 connections in the last 7 days"
+    },
+    {
+      "id": "PUBLIC_ACCESS",
+      "severity": "high",
+      "location": "us-east-1/mydb-prod",
+      "message": "RDS instance is publicly accessible"
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "high": 1,
+    "medium": 1,
+    "low": 0,
+    "info": 0
+  }
+}

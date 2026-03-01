@@ -72,23 +72,76 @@ func (n *Normalizer) NormalizeSpectreV1(report *models.ToolReport, v1 *models.Sp
 // mapSpectreV1IDToCategory maps spectre/v1 finding IDs to normalized categories.
 func mapSpectreV1IDToCategory(id string) string {
 	switch id {
-	case "MISSING_BUCKET", "MISSING_TABLE", "MISSING_COLUMN", "MISSING_COLLECTION", "MISSING_SECRET":
+	// --- missing ---
+	case "MISSING_BUCKET", "MISSING_TABLE", "MISSING_COLUMN", "MISSING_COLLECTION", "MISSING_SECRET",
+		// kubespectre
+		"MISSING_NETWORK_POLICY", "MISSING_AUDIT_POLICY":
 		return models.StatusMissing
+
+	// --- unused ---
 	case "UNUSED_BUCKET", "UNUSED_TABLE", "UNUSED_INDEX", "UNUSED_TOPIC", "UNUSED_COLLECTION",
-		"UNREFERENCED_TABLE", "ORPHANED_INDEX":
+		"UNREFERENCED_TABLE", "ORPHANED_INDEX",
+		// kubespectre
+		"UNUSED_SECRET_MOUNT",
+		// redisspectre
+		"CONNECTION_WASTE",
+		// ecrspectre
+		"UNUSED_REPO",
+		// rdsspectre
+		"IDLE_INSTANCE", "UNUSED_READ_REPLICA",
+		// awsspectre
+		"IDLE_EC2", "STOPPED_EC2", "IDLE_ALB", "IDLE_NLB", "IDLE_NAT_GATEWAY",
+		"IDLE_RDS", "IDLE_LAMBDA", "DETACHED_EBS", "UNUSED_EIP", "UNUSED_SECURITY_GROUP",
+		// iamspectre
+		"UNUSED_ROLE", "UNATTACHED_POLICY":
 		return models.StatusUnused
+
+	// --- stale ---
 	case "STALE_PREFIX", "BLOATED_INDEX", "MISSING_VACUUM", "OVERSIZED_COLLECTION", "STALE_SECRET",
-		"INACTIVE_USER", "INACTIVE_PRIVILEGED_USER":
+		"INACTIVE_USER", "INACTIVE_PRIVILEGED_USER",
+		// redisspectre
+		"IDLE_KEY", "BIG_KEY", "SLOW_COMMAND",
+		// ecrspectre
+		"STALE_IMAGE", "LARGE_IMAGE", "MULTI_ARCH_BLOAT",
+		// rdsspectre
+		"STALE_SNAPSHOT", "OLD_ENGINE_VERSION",
+		// awsspectre
+		"LOW_TRAFFIC_NAT_GATEWAY",
+		// iamspectre
+		"STALE_USER", "STALE_ACCESS_KEY", "STALE_SA", "STALE_SA_KEY":
 		return models.StatusStale
+
+	// --- misconfig ---
 	case "VERSION_SPRAWL", "LIFECYCLE_MISCONFIG", "NO_PRIMARY_KEY", "DUPLICATE_INDEX",
 		"UNINDEXED_QUERY", "MISSING_INDEX", "MISSING_TTL", "SUGGEST_INDEX",
 		"ADMIN_IN_DATA_DB", "DUPLICATE_USER", "OVERPRIVILEGED_USER", "MULTIPLE_ADMIN_USERS",
-		"FAILED_AUTH_ONLY":
+		"FAILED_AUTH_ONLY",
+		// kubespectre
+		"WILDCARD_RBAC", "CLUSTER_ADMIN_BINDING", "PRIVILEGED_CONTAINER",
+		"HOST_NETWORK", "HOST_PID", "UNENCRYPTED_SECRETS",
+		"DEFAULT_SERVICE_ACCOUNT", "AUTOMOUNT_TOKEN",
+		"NO_IMAGE_DIGEST", "UNTRUSTED_REGISTRY",
+		// redisspectre
+		"HIGH_FRAGMENTATION", "EVICTION_RISK", "NO_PERSISTENCE",
+		// ecrspectre
+		"UNTAGGED_IMAGE", "NO_LIFECYCLE_POLICY", "VULNERABLE_IMAGE",
+		// rdsspectre
+		"OVERSIZED_INSTANCE", "UNENCRYPTED_STORAGE", "PUBLIC_ACCESS",
+		"NO_AUTOMATED_BACKUPS", "NO_MULTI_AZ", "NO_DELETION_PROTECTION",
+		// iamspectre
+		"NO_MFA", "WILDCARD_POLICY", "OVERPRIVILEGED_SA", "CROSS_ACCOUNT_TRUST":
 		return models.StatusMisconfig
+
+	// --- access_denied ---
 	case "RISKY", "ACCESS_DENIED":
 		return models.StatusAccessDeny
-	case "DYNAMIC_COLLECTION":
+
+	// --- drift ---
+	case "DYNAMIC_COLLECTION",
+		// rdsspectre
+		"PARAMETER_GROUP_DRIFT":
 		return models.StatusDrift
+
 	default:
 		return models.StatusError
 	}

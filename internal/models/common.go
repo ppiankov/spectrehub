@@ -16,6 +16,10 @@ const (
 	ToolIAM        ToolType = "iamspectre"
 	ToolGCS        ToolType = "gcsspectre"
 	ToolGCPCompute ToolType = "gcpspectre"
+	ToolKube       ToolType = "kubespectre"
+	ToolRedis      ToolType = "redisspectre"
+	ToolECR        ToolType = "ecrspectre"
+	ToolRDS        ToolType = "rdsspectre"
 	ToolUnknown    ToolType = "unknown"
 )
 
@@ -85,6 +89,30 @@ var SupportedTools = map[ToolType]ToolInfo{
 	},
 	ToolGCPCompute: {
 		Name:          "gcpspectre",
+		MinVersion:    "0.1.0",
+		HasValidation: true,
+		HasNormalizer: true,
+	},
+	ToolKube: {
+		Name:          "kubespectre",
+		MinVersion:    "0.1.0",
+		HasValidation: true,
+		HasNormalizer: true,
+	},
+	ToolRedis: {
+		Name:          "redisspectre",
+		MinVersion:    "0.1.0",
+		HasValidation: true,
+		HasNormalizer: true,
+	},
+	ToolECR: {
+		Name:          "ecrspectre",
+		MinVersion:    "0.1.0",
+		HasValidation: true,
+		HasNormalizer: true,
+	},
+	ToolRDS: {
+		Name:          "rdsspectre",
 		MinVersion:    "0.1.0",
 		HasValidation: true,
 		HasNormalizer: true,

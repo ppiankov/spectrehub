@@ -567,6 +567,90 @@ func TestNormalizeSpectreV1(t *testing.T) {
 	}
 }
 
+func TestMapSpectreV1IDToCategory_NewTools(t *testing.T) {
+	tests := []struct {
+		id       string
+		expected string
+	}{
+		// kubespectre
+		{"WILDCARD_RBAC", models.StatusMisconfig},
+		{"CLUSTER_ADMIN_BINDING", models.StatusMisconfig},
+		{"PRIVILEGED_CONTAINER", models.StatusMisconfig},
+		{"HOST_NETWORK", models.StatusMisconfig},
+		{"HOST_PID", models.StatusMisconfig},
+		{"MISSING_NETWORK_POLICY", models.StatusMissing},
+		{"UNENCRYPTED_SECRETS", models.StatusMisconfig},
+		{"UNUSED_SECRET_MOUNT", models.StatusUnused},
+		{"STALE_SECRET", models.StatusStale},
+		{"DEFAULT_SERVICE_ACCOUNT", models.StatusMisconfig},
+		{"AUTOMOUNT_TOKEN", models.StatusMisconfig},
+		{"NO_IMAGE_DIGEST", models.StatusMisconfig},
+		{"UNTRUSTED_REGISTRY", models.StatusMisconfig},
+		{"MISSING_AUDIT_POLICY", models.StatusMissing},
+		// redisspectre
+		{"HIGH_FRAGMENTATION", models.StatusMisconfig},
+		{"IDLE_KEY", models.StatusStale},
+		{"BIG_KEY", models.StatusStale},
+		{"CONNECTION_WASTE", models.StatusUnused},
+		{"EVICTION_RISK", models.StatusMisconfig},
+		{"NO_PERSISTENCE", models.StatusMisconfig},
+		{"SLOW_COMMAND", models.StatusStale},
+		// ecrspectre
+		{"UNTAGGED_IMAGE", models.StatusMisconfig},
+		{"STALE_IMAGE", models.StatusStale},
+		{"LARGE_IMAGE", models.StatusStale},
+		{"NO_LIFECYCLE_POLICY", models.StatusMisconfig},
+		{"VULNERABLE_IMAGE", models.StatusMisconfig},
+		{"UNUSED_REPO", models.StatusUnused},
+		{"MULTI_ARCH_BLOAT", models.StatusStale},
+		// rdsspectre
+		{"IDLE_INSTANCE", models.StatusUnused},
+		{"OVERSIZED_INSTANCE", models.StatusMisconfig},
+		{"UNENCRYPTED_STORAGE", models.StatusMisconfig},
+		{"PUBLIC_ACCESS", models.StatusMisconfig},
+		{"NO_AUTOMATED_BACKUPS", models.StatusMisconfig},
+		{"STALE_SNAPSHOT", models.StatusStale},
+		{"UNUSED_READ_REPLICA", models.StatusUnused},
+		{"NO_MULTI_AZ", models.StatusMisconfig},
+		{"OLD_ENGINE_VERSION", models.StatusStale},
+		{"NO_DELETION_PROTECTION", models.StatusMisconfig},
+		{"PARAMETER_GROUP_DRIFT", models.StatusDrift},
+		// awsspectre
+		{"IDLE_EC2", models.StatusUnused},
+		{"STOPPED_EC2", models.StatusUnused},
+		{"DETACHED_EBS", models.StatusUnused},
+		{"UNUSED_EIP", models.StatusUnused},
+		{"IDLE_ALB", models.StatusUnused},
+		{"IDLE_NLB", models.StatusUnused},
+		{"IDLE_NAT_GATEWAY", models.StatusUnused},
+		{"LOW_TRAFFIC_NAT_GATEWAY", models.StatusStale},
+		{"IDLE_RDS", models.StatusUnused},
+		{"IDLE_LAMBDA", models.StatusUnused},
+		{"UNUSED_SECURITY_GROUP", models.StatusUnused},
+		// iamspectre
+		{"STALE_USER", models.StatusStale},
+		{"STALE_ACCESS_KEY", models.StatusStale},
+		{"NO_MFA", models.StatusMisconfig},
+		{"UNUSED_ROLE", models.StatusUnused},
+		{"UNATTACHED_POLICY", models.StatusUnused},
+		{"WILDCARD_POLICY", models.StatusMisconfig},
+		{"CROSS_ACCOUNT_TRUST", models.StatusMisconfig},
+		{"STALE_SA", models.StatusStale},
+		{"STALE_SA_KEY", models.StatusStale},
+		{"OVERPRIVILEGED_SA", models.StatusMisconfig},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.id, func(t *testing.T) {
+			got := mapSpectreV1IDToCategory(tt.id)
+			if got != tt.expected {
+				t.Fatalf("mapSpectreV1IDToCategory(%q) = %q, want %q", tt.id, got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestMapSpectreSeverity(t *testing.T) {
 	tests := []struct {
 		input    string
