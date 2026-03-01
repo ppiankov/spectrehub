@@ -12,6 +12,7 @@ bin/
 # Output of the go coverage tool
 *.out
 coverage.out
+.cache/
 
 # Go workspace file
 go.work
@@ -32,4 +33,3 @@ Thumbs.db
 # SpectreHub specific
 .spectre/
 *.json.bak
-

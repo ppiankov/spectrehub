@@ -6,6 +6,9 @@ BUILD_DIR=bin
 MAIN_PATH=./cmd/spectrehub
 VERSION ?= dev
 LDFLAGS=-s -w -X main.version=$(VERSION)
+CACHE_DIR=$(CURDIR)/.cache
+GO_BUILD_CACHE=$(CACHE_DIR)/go-build
+GOLANGCI_CACHE=$(CACHE_DIR)/golangci-lint
 
 # Go parameters
 GOCMD=go
@@ -44,7 +47,8 @@ release:
 # Run tests
 test:
 	@echo "Running tests..."
-	$(GOTEST) -v -cover ./...
+	@mkdir -p $(GO_BUILD_CACHE)
+	GOCACHE=$(GO_BUILD_CACHE) $(GOTEST) -race -v -cover ./...
 
 # Run contract tests
 test-contract:
@@ -68,7 +72,8 @@ clean:
 lint:
 	@echo "Running linter..."
 	@which golangci-lint > /dev/null || (echo "golangci-lint not installed" && exit 1)
-	golangci-lint run
+	@mkdir -p $(GO_BUILD_CACHE) $(GOLANGCI_CACHE)
+	GOCACHE=$(GO_BUILD_CACHE) GOLANGCI_LINT_CACHE=$(GOLANGCI_CACHE) golangci-lint run ./...
 
 # Format code
 fmt:

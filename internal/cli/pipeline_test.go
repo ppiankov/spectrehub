@@ -3,7 +3,6 @@ package cli
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -182,7 +181,7 @@ func TestSubmitUserActivityNoUserFindings(t *testing.T) {
 
 func TestSubmitUserActivitySuccess(t *testing.T) {
 	var receivedPayload apiclient.UserActivityPayload
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newIPv4Server(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v1/users/activity" && r.Method == "POST" {
 			_ = json.NewDecoder(r.Body).Decode(&receivedPayload)
 			w.WriteHeader(http.StatusCreated)
@@ -227,7 +226,7 @@ func TestSubmitUserActivitySuccess(t *testing.T) {
 }
 
 func TestSubmitUserActivityAPIError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newIPv4Server(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`{"error":"user activity requires Team tier or higher"}`))
 	}))
