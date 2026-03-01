@@ -149,6 +149,19 @@ func RunPipeline(toolReports []models.ToolReport, pcfg PipelineConfig) error {
 					}
 				}
 			}
+
+			// Step 7.2: User activity policy enforcement (requires API + mongospectre)
+			if pcfg.LicenseKey != "" {
+				if uaResult := evaluateUserActivityPolicy(pol, toolReports, pcfg); uaResult != nil && !uaResult.Pass {
+					for _, v := range uaResult.Violations {
+						logError("User activity policy violation [%s]: %s", v.Rule, v.Message)
+					}
+					return &ThresholdExceededError{
+						IssueCount: len(uaResult.Violations),
+						Threshold:  0,
+					}
+				}
+			}
 		}
 	}
 
@@ -279,8 +292,28 @@ func submitUserActivity(toolReports []models.ToolReport, pcfg PipelineConfig) er
 
 		fmt.Fprintf(os.Stderr, "User activity synced (%d users for %s)\n",
 			len(entries), v1.Target.URIHash)
+
+		// Fetch and display enriched summary from API (non-fatal).
+		if summary, err := client.GetUserActivitySummary(v1.Target.URIHash); err == nil && summary != nil {
+			printUserActivitySummary(summary)
+		}
 	}
 	return nil
+}
+
+// printUserActivitySummary prints an enriched user activity summary table to stderr.
+func printUserActivitySummary(s *apiclient.UserActivitySummary) {
+	fmt.Fprintf(os.Stderr, "\nMongoDB User Activity Summary (%s):\n", s.TargetHash)
+	fmt.Fprintf(os.Stderr, "  %-22s %d\n", "Total Users:", s.TotalUsers)
+	fmt.Fprintf(os.Stderr, "  %-22s %d\n", "Privileged:", s.PrivilegedUsers)
+	fmt.Fprintf(os.Stderr, "  %-22s %d\n", "Inactive (30d):", s.Inactive30d)
+	fmt.Fprintf(os.Stderr, "  %-22s %d\n", "Inactive (60d):", s.Inactive60d)
+	fmt.Fprintf(os.Stderr, "  %-22s %d\n", "Inactive (90d):", s.Inactive90d)
+	fmt.Fprintf(os.Stderr, "  %-22s %d\n", "Never Seen:", s.NeverSeen)
+	if s.MonitoringSince != "" {
+		fmt.Fprintf(os.Stderr, "  %-22s %s\n", "Monitoring Since:", s.MonitoringSince)
+	}
+	fmt.Fprintln(os.Stderr)
 }
 
 // evaluateSLAPolicy fetches the SLA summary from the API and evaluates it
@@ -311,6 +344,56 @@ func evaluateSLAPolicy(pol *policy.Policy, pcfg PipelineConfig) *policy.Result {
 	}
 
 	return pol.EvaluateSLA(summary)
+}
+
+// evaluateUserActivityPolicy fetches user activity summaries from the API
+// for any mongospectre targets in the tool reports and evaluates them against
+// the policy's user activity rules. Returns nil if no rules are configured.
+func evaluateUserActivityPolicy(pol *policy.Policy, toolReports []models.ToolReport, pcfg PipelineConfig) *policy.Result {
+	if pol.Rules.MaxInactiveUsers == nil && pol.Rules.MaxNeverSeenUsers == nil {
+		return nil
+	}
+
+	apiURL := pcfg.APIURL
+	if apiURL == "" {
+		apiURL = "https://api.spectrehub.dev"
+	}
+
+	client := apiclient.New(apiURL, pcfg.LicenseKey)
+	if client == nil {
+		return nil
+	}
+
+	var allViolations []policy.Violation
+	for _, tr := range toolReports {
+		v1, ok := tr.RawData.(*models.SpectreV1Report)
+		if !ok || v1 == nil || v1.Tool != "mongospectre" {
+			continue
+		}
+
+		summary, err := client.GetUserActivitySummary(v1.Target.URIHash)
+		if err != nil {
+			logVerbose("User activity policy check skipped for %s: %v", v1.Target.URIHash, err)
+			continue
+		}
+		if summary == nil {
+			continue
+		}
+
+		result := pol.EvaluateUserActivity(summary)
+		if !result.Pass {
+			allViolations = append(allViolations, result.Violations...)
+		}
+	}
+
+	if len(allViolations) == 0 {
+		return nil
+	}
+
+	return &policy.Result{
+		Pass:       false,
+		Violations: allViolations,
+	}
 }
 
 // submitFindings extracts finding lifecycle data from all spectre/v1 tool

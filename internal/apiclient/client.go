@@ -312,6 +312,52 @@ func (c *Client) GetSLASummary() (*SLASummary, error) {
 	return &summary, nil
 }
 
+// UserActivitySummary holds the response from GET /v1/users/activity/summary.
+type UserActivitySummary struct {
+	TargetHash      string `json:"target_hash"`
+	TotalUsers      int    `json:"total_users"`
+	PrivilegedUsers int    `json:"privileged_users"`
+	Inactive30d     int    `json:"inactive_30d"`
+	Inactive60d     int    `json:"inactive_60d"`
+	Inactive90d     int    `json:"inactive_90d"`
+	NeverSeen       int    `json:"never_seen"`
+	MonitoringSince string `json:"monitoring_since"`
+}
+
+// GetUserActivitySummary fetches accumulated user activity metrics for a target.
+func (c *Client) GetUserActivitySummary(targetHash string) (*UserActivitySummary, error) {
+	if c == nil {
+		return nil, nil
+	}
+
+	req, err := http.NewRequest("GET", c.baseURL+"/v1/users/activity/summary?target_hash="+targetHash, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+c.licenseKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("get user activity summary: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode == http.StatusForbidden {
+		return nil, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API error (HTTP %d)", resp.StatusCode)
+	}
+
+	var summary UserActivitySummary
+	if err := json.NewDecoder(resp.Body).Decode(&summary); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	return &summary, nil
+}
+
 // ReposInfo holds the response from GET /v1/repos.
 type ReposInfo struct {
 	Repos    []string `json:"repos"`

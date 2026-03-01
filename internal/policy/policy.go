@@ -26,6 +26,8 @@ type Rules struct {
 	RequireTools        []string `yaml:"require_tools,omitempty"`
 	MaxOpenCriticalDays *int     `yaml:"max_open_critical_days,omitempty"`
 	MaxOpenHighDays     *int     `yaml:"max_open_high_days,omitempty"`
+	MaxInactiveUsers    *int     `yaml:"max_inactive_users,omitempty"`
+	MaxNeverSeenUsers   *int     `yaml:"max_never_seen_users,omitempty"`
 }
 
 // Violation is a single policy failure.
@@ -212,6 +214,45 @@ func (p *Policy) EvaluateSLA(summary *apiclient.SLASummary) *Result {
 					Message: fmt.Sprintf("median high remediation %.0f days exceeds limit %d", *days, *p.Rules.MaxOpenHighDays),
 				})
 			}
+		}
+	}
+
+	return &Result{
+		Pass:       len(violations) == 0,
+		Violations: violations,
+	}
+}
+
+// EvaluateUserActivity checks accumulated user activity data against
+// the user-activity-related policy rules (max_inactive_users, max_never_seen_users).
+// Returns a passing result if no user activity rules are configured or summary is nil.
+func (p *Policy) EvaluateUserActivity(summary *apiclient.UserActivitySummary) *Result {
+	if p == nil || summary == nil {
+		return &Result{Pass: true}
+	}
+
+	hasRules := p.Rules.MaxInactiveUsers != nil || p.Rules.MaxNeverSeenUsers != nil
+	if !hasRules {
+		return &Result{Pass: true}
+	}
+
+	var violations []Violation
+
+	if p.Rules.MaxInactiveUsers != nil {
+		if summary.Inactive30d > *p.Rules.MaxInactiveUsers {
+			violations = append(violations, Violation{
+				Rule:    "max_inactive_users",
+				Message: fmt.Sprintf("inactive users (30d) %d exceeds limit %d", summary.Inactive30d, *p.Rules.MaxInactiveUsers),
+			})
+		}
+	}
+
+	if p.Rules.MaxNeverSeenUsers != nil {
+		if summary.NeverSeen > *p.Rules.MaxNeverSeenUsers {
+			violations = append(violations, Violation{
+				Rule:    "max_never_seen_users",
+				Message: fmt.Sprintf("never-seen users %d exceeds limit %d", summary.NeverSeen, *p.Rules.MaxNeverSeenUsers),
+			})
 		}
 	}
 

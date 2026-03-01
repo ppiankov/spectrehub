@@ -489,6 +489,88 @@ func TestEvaluateSLAOldestOpenCritical(t *testing.T) {
 	}
 }
 
+func TestEvaluateUserActivityNilPolicy(t *testing.T) {
+	var p *Policy
+	result := p.EvaluateUserActivity(&apiclient.UserActivitySummary{})
+	if !result.Pass {
+		t.Error("nil policy should pass user activity check")
+	}
+}
+
+func TestEvaluateUserActivityNilSummary(t *testing.T) {
+	p := &Policy{Rules: Rules{MaxInactiveUsers: intPtr(5)}}
+	result := p.EvaluateUserActivity(nil)
+	if !result.Pass {
+		t.Error("nil summary should pass user activity check")
+	}
+}
+
+func TestEvaluateUserActivityNoRules(t *testing.T) {
+	p := &Policy{Rules: Rules{MaxIssues: intPtr(10)}}
+	summary := &apiclient.UserActivitySummary{Inactive30d: 50, NeverSeen: 10}
+	result := p.EvaluateUserActivity(summary)
+	if !result.Pass {
+		t.Error("no user activity rules should pass")
+	}
+}
+
+func TestEvaluateUserActivityMaxInactivePass(t *testing.T) {
+	p := &Policy{Rules: Rules{MaxInactiveUsers: intPtr(5)}}
+	summary := &apiclient.UserActivitySummary{Inactive30d: 3}
+	result := p.EvaluateUserActivity(summary)
+	if !result.Pass {
+		t.Errorf("expected pass (3 <= 5), got violations: %v", result.Violations)
+	}
+}
+
+func TestEvaluateUserActivityMaxInactiveFail(t *testing.T) {
+	p := &Policy{Rules: Rules{MaxInactiveUsers: intPtr(2)}}
+	summary := &apiclient.UserActivitySummary{Inactive30d: 5}
+	result := p.EvaluateUserActivity(summary)
+	if result.Pass {
+		t.Error("expected fail: 5 inactive > limit 2")
+	}
+	if len(result.Violations) != 1 || result.Violations[0].Rule != "max_inactive_users" {
+		t.Errorf("expected max_inactive_users violation, got %v", result.Violations)
+	}
+}
+
+func TestEvaluateUserActivityMaxNeverSeenPass(t *testing.T) {
+	p := &Policy{Rules: Rules{MaxNeverSeenUsers: intPtr(3)}}
+	summary := &apiclient.UserActivitySummary{NeverSeen: 1}
+	result := p.EvaluateUserActivity(summary)
+	if !result.Pass {
+		t.Errorf("expected pass (1 <= 3), got violations: %v", result.Violations)
+	}
+}
+
+func TestEvaluateUserActivityMaxNeverSeenFail(t *testing.T) {
+	p := &Policy{Rules: Rules{MaxNeverSeenUsers: intPtr(0)}}
+	summary := &apiclient.UserActivitySummary{NeverSeen: 3}
+	result := p.EvaluateUserActivity(summary)
+	if result.Pass {
+		t.Error("expected fail: 3 never-seen > limit 0")
+	}
+	if result.Violations[0].Rule != "max_never_seen_users" {
+		t.Errorf("expected max_never_seen_users, got %s", result.Violations[0].Rule)
+	}
+}
+
+func TestEvaluateUserActivityMultipleViolations(t *testing.T) {
+	p := &Policy{Rules: Rules{
+		MaxInactiveUsers:  intPtr(0),
+		MaxNeverSeenUsers: intPtr(0),
+	}}
+	summary := &apiclient.UserActivitySummary{Inactive30d: 5, NeverSeen: 2}
+	result := p.EvaluateUserActivity(summary)
+	if result.Pass {
+		t.Error("expected fail with multiple violations")
+	}
+	if len(result.Violations) != 2 {
+		t.Errorf("expected 2 violations, got %d", len(result.Violations))
+	}
+}
+
 func TestLoadFromFileWithSLARules(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, ".spectrehub-policy.yaml")
@@ -511,5 +593,29 @@ rules:
 	}
 	if p.Rules.MaxOpenHighDays == nil || *p.Rules.MaxOpenHighDays != 30 {
 		t.Errorf("expected max_open_high_days=30, got %v", p.Rules.MaxOpenHighDays)
+	}
+}
+
+func TestLoadFromFileWithUserActivityRules(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".spectrehub-policy.yaml")
+	content := `version: "1"
+rules:
+  max_inactive_users: 5
+  max_never_seen_users: 0
+`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	p, err := LoadFromFile(path)
+	if err != nil {
+		t.Fatalf("LoadFromFile: %v", err)
+	}
+	if p.Rules.MaxInactiveUsers == nil || *p.Rules.MaxInactiveUsers != 5 {
+		t.Errorf("expected max_inactive_users=5, got %v", p.Rules.MaxInactiveUsers)
+	}
+	if p.Rules.MaxNeverSeenUsers == nil || *p.Rules.MaxNeverSeenUsers != 0 {
+		t.Errorf("expected max_never_seen_users=0, got %v", p.Rules.MaxNeverSeenUsers)
 	}
 }
