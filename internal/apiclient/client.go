@@ -196,6 +196,122 @@ func (c *Client) SubmitUserActivity(payload UserActivityPayload) error {
 	return nil
 }
 
+// FindingEntry is a single finding for the lifecycle API.
+type FindingEntry struct {
+	FindingHash    string `json:"finding_hash"`
+	FindingID      string `json:"finding_id"`
+	ResourceID     string `json:"resource_id"`
+	Severity       string `json:"severity"`
+	Identity       string `json:"identity,omitempty"`
+	CredentialType string `json:"credential_type,omitempty"`
+	Cloud          string `json:"cloud,omitempty"`
+}
+
+// FindingsPayload is the body for POST /v1/findings.
+type FindingsPayload struct {
+	Tool     string         `json:"tool"`
+	Findings []FindingEntry `json:"findings"`
+}
+
+// FindingsResponse is the response from POST /v1/findings.
+type FindingsResponse struct {
+	Stored   int    `json:"stored"`
+	Resolved int64  `json:"resolved"`
+	Tool     string `json:"tool"`
+}
+
+// SubmitFindings sends finding lifecycle data to the API.
+func (c *Client) SubmitFindings(payload FindingsPayload) (*FindingsResponse, error) {
+	if c == nil {
+		return nil, nil
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshal findings: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", c.baseURL+"/v1/findings", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+c.licenseKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("submit findings: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusCreated {
+		var errResp map[string]string
+		_ = json.NewDecoder(resp.Body).Decode(&errResp)
+		msg := errResp["error"]
+		if msg == "" {
+			msg = resp.Status
+		}
+		return nil, fmt.Errorf("API error: %s", msg)
+	}
+
+	var result FindingsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	return &result, nil
+}
+
+// SLASummary holds the response from GET /v1/findings/sla/summary.
+type SLASummary struct {
+	OpenFindings          map[string]int      `json:"open_findings"`
+	MedianRemediationDays map[string]*float64 `json:"median_remediation_days"`
+	OldestOpen            *OldestOpenFinding  `json:"oldest_open"`
+}
+
+// OldestOpenFinding is the longest-open finding.
+type OldestOpenFinding struct {
+	FindingID  string `json:"finding_id"`
+	ResourceID string `json:"resource_id"`
+	OpenDays   int    `json:"open_days"`
+}
+
+// GetSLASummary fetches remediation SLA metrics from the API.
+func (c *Client) GetSLASummary() (*SLASummary, error) {
+	if c == nil {
+		return nil, nil
+	}
+
+	req, err := http.NewRequest("GET", c.baseURL+"/v1/findings/sla/summary", nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+c.licenseKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("get SLA summary: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode == http.StatusForbidden {
+		// Free tier — SLA not available.
+		return nil, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API error (HTTP %d)", resp.StatusCode)
+	}
+
+	var summary SLASummary
+	if err := json.NewDecoder(resp.Body).Decode(&summary); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	return &summary, nil
+}
+
 // ReposInfo holds the response from GET /v1/repos.
 type ReposInfo struct {
 	Repos    []string `json:"repos"`

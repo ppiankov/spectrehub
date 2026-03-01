@@ -101,6 +101,11 @@ func RunPipeline(toolReports []models.ToolReport, pcfg PipelineConfig) error {
 		if err := submitUserActivity(toolReports, pcfg); err != nil {
 			logVerbose("User activity sync skipped: %v", err)
 		}
+
+		// Step 5.6: Submit finding lifecycle data (non-fatal)
+		if err := submitFindings(toolReports, pcfg); err != nil {
+			logVerbose("Finding lifecycle sync skipped: %v", err)
+		}
 	}
 
 	// Step 6: Generate output
@@ -131,6 +136,19 @@ func RunPipeline(toolReports []models.ToolReport, pcfg PipelineConfig) error {
 				}
 			}
 			logVerbose("Policy check passed")
+
+			// Step 7.1: SLA policy enforcement (requires API)
+			if pcfg.LicenseKey != "" {
+				if slaViolations := evaluateSLAPolicy(pol, pcfg); slaViolations != nil && !slaViolations.Pass {
+					for _, v := range slaViolations.Violations {
+						logError("SLA policy violation [%s]: %s", v.Rule, v.Message)
+					}
+					return &ThresholdExceededError{
+						IssueCount: len(slaViolations.Violations),
+						Threshold:  0,
+					}
+				}
+			}
 		}
 	}
 
@@ -261,6 +279,82 @@ func submitUserActivity(toolReports []models.ToolReport, pcfg PipelineConfig) er
 
 		fmt.Fprintf(os.Stderr, "User activity synced (%d users for %s)\n",
 			len(entries), v1.Target.URIHash)
+	}
+	return nil
+}
+
+// evaluateSLAPolicy fetches the SLA summary from the API and evaluates it
+// against the policy's SLA rules. Returns nil if no SLA rules are configured
+// or the API call fails (non-fatal).
+func evaluateSLAPolicy(pol *policy.Policy, pcfg PipelineConfig) *policy.Result {
+	if pol.Rules.MaxOpenCriticalDays == nil && pol.Rules.MaxOpenHighDays == nil {
+		return nil
+	}
+
+	apiURL := pcfg.APIURL
+	if apiURL == "" {
+		apiURL = "https://api.spectrehub.dev"
+	}
+
+	client := apiclient.New(apiURL, pcfg.LicenseKey)
+	if client == nil {
+		return nil
+	}
+
+	summary, err := client.GetSLASummary()
+	if err != nil {
+		logVerbose("SLA policy check skipped (API error): %v", err)
+		return nil
+	}
+	if summary == nil {
+		return nil
+	}
+
+	return pol.EvaluateSLA(summary)
+}
+
+// submitFindings extracts finding lifecycle data from all spectre/v1 tool
+// reports and sends each batch to the SpectreHub API. Returns nil if no
+// findings are found or the license key is empty.
+func submitFindings(toolReports []models.ToolReport, pcfg PipelineConfig) error {
+	if strings.TrimSpace(pcfg.LicenseKey) == "" {
+		return nil
+	}
+
+	apiURL := pcfg.APIURL
+	if apiURL == "" {
+		apiURL = "https://api.spectrehub.dev"
+	}
+
+	client := apiclient.New(apiURL, pcfg.LicenseKey)
+	if client == nil {
+		return nil
+	}
+
+	for _, tr := range toolReports {
+		v1, ok := tr.RawData.(*models.SpectreV1Report)
+		if !ok || v1 == nil {
+			continue
+		}
+
+		entries := ingest.ExtractFindings(v1)
+		if len(entries) == 0 {
+			continue
+		}
+
+		payload := apiclient.FindingsPayload{
+			Tool:     v1.Tool,
+			Findings: entries,
+		}
+
+		resp, err := client.SubmitFindings(payload)
+		if err != nil {
+			return fmt.Errorf("submit findings for %s: %w", v1.Tool, err)
+		}
+		if resp != nil {
+			fmt.Fprintf(os.Stderr, "Findings synced for %s (stored=%d, resolved=%d)\n",
+				resp.Tool, resp.Stored, resp.Resolved)
+		}
 	}
 	return nil
 }

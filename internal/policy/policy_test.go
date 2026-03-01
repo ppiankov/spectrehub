@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ppiankov/spectrehub/internal/apiclient"
 	"github.com/ppiankov/spectrehub/internal/models"
 )
 
@@ -389,5 +390,126 @@ func TestEvaluateNoRules(t *testing.T) {
 	}
 	if len(result.Violations) != 0 {
 		t.Errorf("expected no violations, got %d", len(result.Violations))
+	}
+}
+
+func TestEvaluateSLANilPolicy(t *testing.T) {
+	var p *Policy
+	result := p.EvaluateSLA(&apiclient.SLASummary{})
+	if !result.Pass {
+		t.Error("nil policy should pass SLA check")
+	}
+}
+
+func TestEvaluateSLANilSummary(t *testing.T) {
+	p := &Policy{Rules: Rules{MaxOpenCriticalDays: intPtr(7)}}
+	result := p.EvaluateSLA(nil)
+	if !result.Pass {
+		t.Error("nil summary should pass SLA check")
+	}
+}
+
+func TestEvaluateSLANoSLARules(t *testing.T) {
+	p := &Policy{Rules: Rules{MaxIssues: intPtr(10)}}
+	summary := &apiclient.SLASummary{
+		MedianRemediationDays: map[string]*float64{"critical": floatPtr(30)},
+	}
+	result := p.EvaluateSLA(summary)
+	if result != nil && !result.Pass {
+		t.Error("no SLA rules should pass")
+	}
+}
+
+func TestEvaluateSLACriticalDaysPass(t *testing.T) {
+	p := &Policy{Rules: Rules{MaxOpenCriticalDays: intPtr(14)}}
+	summary := &apiclient.SLASummary{
+		MedianRemediationDays: map[string]*float64{"critical": floatPtr(7)},
+	}
+	result := p.EvaluateSLA(summary)
+	if !result.Pass {
+		t.Errorf("expected pass (7 <= 14), got violations: %v", result.Violations)
+	}
+}
+
+func TestEvaluateSLACriticalDaysFail(t *testing.T) {
+	p := &Policy{Rules: Rules{MaxOpenCriticalDays: intPtr(7)}}
+	summary := &apiclient.SLASummary{
+		MedianRemediationDays: map[string]*float64{"critical": floatPtr(15)},
+	}
+	result := p.EvaluateSLA(summary)
+	if result.Pass {
+		t.Error("expected fail: median critical 15 > limit 7")
+	}
+	if len(result.Violations) == 0 {
+		t.Fatal("expected violations")
+	}
+	if result.Violations[0].Rule != "max_open_critical_days" {
+		t.Errorf("expected max_open_critical_days rule, got %s", result.Violations[0].Rule)
+	}
+}
+
+func TestEvaluateSLAHighDaysFail(t *testing.T) {
+	p := &Policy{Rules: Rules{MaxOpenHighDays: intPtr(30)}}
+	summary := &apiclient.SLASummary{
+		MedianRemediationDays: map[string]*float64{"high": floatPtr(45)},
+	}
+	result := p.EvaluateSLA(summary)
+	if result.Pass {
+		t.Error("expected fail: median high 45 > limit 30")
+	}
+	if result.Violations[0].Rule != "max_open_high_days" {
+		t.Errorf("expected max_open_high_days rule, got %s", result.Violations[0].Rule)
+	}
+}
+
+func TestEvaluateSLAHighDaysPass(t *testing.T) {
+	p := &Policy{Rules: Rules{MaxOpenHighDays: intPtr(30)}}
+	summary := &apiclient.SLASummary{
+		MedianRemediationDays: map[string]*float64{"high": floatPtr(10)},
+	}
+	result := p.EvaluateSLA(summary)
+	if !result.Pass {
+		t.Errorf("expected pass (10 <= 30), got violations: %v", result.Violations)
+	}
+}
+
+func TestEvaluateSLAOldestOpenCritical(t *testing.T) {
+	p := &Policy{Rules: Rules{MaxOpenCriticalDays: intPtr(7)}}
+	summary := &apiclient.SLASummary{
+		OpenFindings: map[string]int{"critical": 3},
+		OldestOpen: &apiclient.OldestOpenFinding{
+			FindingID:  "STALE_KEY",
+			ResourceID: "arn:aws:iam::123:user/alice",
+			OpenDays:   21,
+		},
+	}
+	result := p.EvaluateSLA(summary)
+	if result.Pass {
+		t.Error("expected fail: oldest open 21 days > limit 7")
+	}
+}
+
+func TestLoadFromFileWithSLARules(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".spectrehub-policy.yaml")
+	content := `version: "1"
+rules:
+  max_issues: 10
+  max_open_critical_days: 7
+  max_open_high_days: 30
+`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	p, err := LoadFromFile(path)
+	if err != nil {
+		t.Fatalf("LoadFromFile: %v", err)
+	}
+	if p.Rules.MaxOpenCriticalDays == nil || *p.Rules.MaxOpenCriticalDays != 7 {
+		t.Errorf("expected max_open_critical_days=7, got %v", p.Rules.MaxOpenCriticalDays)
+	}
+	if p.Rules.MaxOpenHighDays == nil || *p.Rules.MaxOpenHighDays != 30 {
+		t.Errorf("expected max_open_high_days=30, got %v", p.Rules.MaxOpenHighDays)
 	}
 }

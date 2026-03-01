@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ppiankov/spectrehub/internal/apiclient"
 	"github.com/ppiankov/spectrehub/internal/models"
 	"gopkg.in/yaml.v3"
 )
@@ -17,12 +18,14 @@ type Policy struct {
 
 // Rules contains all configurable policy rules.
 type Rules struct {
-	MaxIssues        *int     `yaml:"max_issues,omitempty"`
-	MaxCritical      *int     `yaml:"max_critical,omitempty"`
-	MaxHigh          *int     `yaml:"max_high,omitempty"`
-	MinScore         *float64 `yaml:"min_score,omitempty"`
-	ForbidCategories []string `yaml:"forbid_categories,omitempty"`
-	RequireTools     []string `yaml:"require_tools,omitempty"`
+	MaxIssues           *int     `yaml:"max_issues,omitempty"`
+	MaxCritical         *int     `yaml:"max_critical,omitempty"`
+	MaxHigh             *int     `yaml:"max_high,omitempty"`
+	MinScore            *float64 `yaml:"min_score,omitempty"`
+	ForbidCategories    []string `yaml:"forbid_categories,omitempty"`
+	RequireTools        []string `yaml:"require_tools,omitempty"`
+	MaxOpenCriticalDays *int     `yaml:"max_open_critical_days,omitempty"`
+	MaxOpenHighDays     *int     `yaml:"max_open_high_days,omitempty"`
 }
 
 // Violation is a single policy failure.
@@ -155,6 +158,58 @@ func (p *Policy) Evaluate(report *models.AggregatedReport) *Result {
 				violations = append(violations, Violation{
 					Rule:    "require_tools",
 					Message: fmt.Sprintf("required tool %q not found in report", tool),
+				})
+			}
+		}
+	}
+
+	return &Result{
+		Pass:       len(violations) == 0,
+		Violations: violations,
+	}
+}
+
+// EvaluateSLA checks SLA summary data against the SLA-related policy rules
+// (max_open_critical_days, max_open_high_days). Returns a passing result if
+// no SLA rules are configured or if summary is nil.
+func (p *Policy) EvaluateSLA(summary *apiclient.SLASummary) *Result {
+	if p == nil || summary == nil {
+		return &Result{Pass: true}
+	}
+
+	hasSLARules := p.Rules.MaxOpenCriticalDays != nil || p.Rules.MaxOpenHighDays != nil
+	if !hasSLARules {
+		return &Result{Pass: true}
+	}
+
+	var violations []Violation
+
+	if p.Rules.MaxOpenCriticalDays != nil {
+		if days, ok := summary.MedianRemediationDays["critical"]; ok && days != nil {
+			if int(*days) > *p.Rules.MaxOpenCriticalDays {
+				violations = append(violations, Violation{
+					Rule:    "max_open_critical_days",
+					Message: fmt.Sprintf("median critical remediation %.0f days exceeds limit %d", *days, *p.Rules.MaxOpenCriticalDays),
+				})
+			}
+		}
+		if summary.OldestOpen != nil && summary.OldestOpen.OpenDays > *p.Rules.MaxOpenCriticalDays {
+			// Check if oldest open finding is in the count (it's always relevant).
+			if count, ok := summary.OpenFindings["critical"]; ok && count > 0 {
+				violations = append(violations, Violation{
+					Rule:    "max_open_critical_days",
+					Message: fmt.Sprintf("oldest open critical finding is %d days old (limit %d)", summary.OldestOpen.OpenDays, *p.Rules.MaxOpenCriticalDays),
+				})
+			}
+		}
+	}
+
+	if p.Rules.MaxOpenHighDays != nil {
+		if days, ok := summary.MedianRemediationDays["high"]; ok && days != nil {
+			if int(*days) > *p.Rules.MaxOpenHighDays {
+				violations = append(violations, Violation{
+					Rule:    "max_open_high_days",
+					Message: fmt.Sprintf("median high remediation %.0f days exceeds limit %d", *days, *p.Rules.MaxOpenHighDays),
 				})
 			}
 		}
