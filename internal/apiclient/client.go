@@ -358,6 +358,71 @@ func (c *Client) GetUserActivitySummary(targetHash string) (*UserActivitySummary
 	return &summary, nil
 }
 
+// WasteEntry is a single waste record for the waste API.
+type WasteEntry struct {
+	ResourceID            string  `json:"resource_id"`
+	ResourceType          string  `json:"resource_type"`
+	FindingID             string  `json:"finding_id"`
+	Region                string  `json:"region"`
+	EstimatedMonthlyWaste float64 `json:"estimated_monthly_waste"`
+}
+
+// WastePayload is the body for POST /v1/waste.
+type WastePayload struct {
+	Tool    string       `json:"tool"`
+	Entries []WasteEntry `json:"entries"`
+}
+
+// WasteResponse is the response from POST /v1/waste.
+type WasteResponse struct {
+	Stored  int    `json:"stored"`
+	Cleaned int64  `json:"cleaned"`
+	Tool    string `json:"tool"`
+}
+
+// SubmitWaste sends waste tracking data to the API.
+func (c *Client) SubmitWaste(payload WastePayload) (*WasteResponse, error) {
+	if c == nil {
+		return nil, nil
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshal waste: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", c.baseURL+"/v1/waste", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+c.licenseKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("submit waste: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusCreated {
+		var errResp map[string]string
+		_ = json.NewDecoder(resp.Body).Decode(&errResp)
+		msg := errResp["error"]
+		if msg == "" {
+			msg = resp.Status
+		}
+		return nil, fmt.Errorf("API error: %s", msg)
+	}
+
+	var result WasteResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	return &result, nil
+}
+
 // ReposInfo holds the response from GET /v1/repos.
 type ReposInfo struct {
 	Repos    []string `json:"repos"`

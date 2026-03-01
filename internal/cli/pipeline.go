@@ -106,6 +106,11 @@ func RunPipeline(toolReports []models.ToolReport, pcfg PipelineConfig) error {
 		if err := submitFindings(toolReports, pcfg); err != nil {
 			logVerbose("Finding lifecycle sync skipped: %v", err)
 		}
+
+		// Step 5.7: Submit waste tracking data (non-fatal)
+		if err := submitWaste(toolReports, pcfg); err != nil {
+			logVerbose("Waste tracking sync skipped: %v", err)
+		}
 	}
 
 	// Step 6: Generate output
@@ -437,6 +442,52 @@ func submitFindings(toolReports []models.ToolReport, pcfg PipelineConfig) error 
 		if resp != nil {
 			fmt.Fprintf(os.Stderr, "Findings synced for %s (stored=%d, resolved=%d)\n",
 				resp.Tool, resp.Stored, resp.Resolved)
+		}
+	}
+	return nil
+}
+
+// submitWaste extracts waste tracking data from awsspectre, gcpspectre, and
+// azurespectre tool reports and sends each batch to the SpectreHub API.
+// Returns nil if no waste data is found or the license key is empty.
+func submitWaste(toolReports []models.ToolReport, pcfg PipelineConfig) error {
+	if strings.TrimSpace(pcfg.LicenseKey) == "" {
+		return nil
+	}
+
+	apiURL := pcfg.APIURL
+	if apiURL == "" {
+		apiURL = "https://api.spectrehub.dev"
+	}
+
+	client := apiclient.New(apiURL, pcfg.LicenseKey)
+	if client == nil {
+		return nil
+	}
+
+	for _, tr := range toolReports {
+		v1, ok := tr.RawData.(*models.SpectreV1Report)
+		if !ok || v1 == nil {
+			continue
+		}
+
+		entries := ingest.ExtractWaste(v1)
+		if len(entries) == 0 {
+			continue
+		}
+
+		payload := apiclient.WastePayload{
+			Tool:    v1.Tool,
+			Entries: entries,
+		}
+
+		resp, err := client.SubmitWaste(payload)
+		if err != nil {
+			return fmt.Errorf("submit waste for %s: %w", v1.Tool, err)
+		}
+		if resp != nil {
+			fmt.Fprintf(os.Stderr, "Waste synced for %s (stored=%d, cleaned=%d)\n",
+				resp.Tool, resp.Stored, resp.Cleaned)
 		}
 	}
 	return nil

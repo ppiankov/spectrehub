@@ -22,10 +22,11 @@ type SpectreV1Target struct {
 
 // SpectreV1Finding is a single issue in the spectre/v1 envelope.
 type SpectreV1Finding struct {
-	ID       string `json:"id"`
-	Severity string `json:"severity"` // high, medium, low, info
-	Location string `json:"location"`
-	Message  string `json:"message"`
+	ID                    string   `json:"id"`
+	Severity              string   `json:"severity"` // high, medium, low, info
+	Location              string   `json:"location"`
+	Message               string   `json:"message"`
+	EstimatedMonthlyWaste *float64 `json:"estimated_monthly_waste,omitempty"`
 }
 
 // SpectreV1Summary counts findings by severity.
