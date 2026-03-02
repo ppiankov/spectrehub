@@ -21,6 +21,12 @@ const (
 	ToolECR        ToolType = "ecrspectre"
 	ToolRDS        ToolType = "rdsspectre"
 	ToolAzure      ToolType = "azurespectre"
+	ToolSnow       ToolType = "snowspectre"
+	ToolCI         ToolType = "cispectre"
+	ToolLog        ToolType = "logspectre"
+	ToolDNS        ToolType = "dnsspectre"
+	ToolElastic    ToolType = "elasticspectre"
+	ToolAI         ToolType = "aispectre"
 	ToolUnknown    ToolType = "unknown"
 )
 
@@ -120,6 +126,42 @@ var SupportedTools = map[ToolType]ToolInfo{
 	},
 	ToolAzure: {
 		Name:          "azurespectre",
+		MinVersion:    "0.1.0",
+		HasValidation: true,
+		HasNormalizer: true,
+	},
+	ToolSnow: {
+		Name:          "snowspectre",
+		MinVersion:    "0.1.0",
+		HasValidation: true,
+		HasNormalizer: true,
+	},
+	ToolCI: {
+		Name:          "cispectre",
+		MinVersion:    "0.1.0",
+		HasValidation: true,
+		HasNormalizer: true,
+	},
+	ToolLog: {
+		Name:          "logspectre",
+		MinVersion:    "0.1.0",
+		HasValidation: true,
+		HasNormalizer: true,
+	},
+	ToolDNS: {
+		Name:          "dnsspectre",
+		MinVersion:    "0.1.0",
+		HasValidation: true,
+		HasNormalizer: true,
+	},
+	ToolElastic: {
+		Name:          "elasticspectre",
+		MinVersion:    "0.1.0",
+		HasValidation: true,
+		HasNormalizer: true,
+	},
+	ToolAI: {
+		Name:          "aispectre",
 		MinVersion:    "0.1.0",
 		HasValidation: true,
 		HasNormalizer: true,
