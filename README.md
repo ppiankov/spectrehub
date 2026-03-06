@@ -17,6 +17,25 @@ The unified infrastructure audit aggregator for the Spectre tool family.
 
 SpectreHub discovers installed Spectre tools, executes them against configured infrastructure, and aggregates JSON reports into a coherent, actionable view of your infrastructure drift.
 
+## Why this exists
+
+Modern infrastructure spans multiple domains: secrets management (Vault), object storage (S3), message queues (Kafka), analytics databases (ClickHouse). Each system has its own audit tools, producing separate reports that are hard to synthesize. SpectreHub solves this by aggregating, normalizing, and scoring findings across all Spectre scanners — one coherent view of infrastructure drift.
+
+```
+  VaultSpectre  S3Spectre  KafkaSpectre  ClickSpectre  ...
+       │            │            │              │
+       └────────────┴────────────┴──────────────┘
+                         │
+                    SpectreHub
+                    (Aggregator)
+                         │
+              ┌──────────┼──────────┐
+              ▼          ▼          ▼
+          Reports     Trends     Storage
+
+          "One coherent view of infrastructure drift"
+```
+
 ## What it is
 
 - Discovers installed Spectre tools and executes them against configured infrastructure
